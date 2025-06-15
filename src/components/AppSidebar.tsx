@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useLocation, Link } from "react-router-dom";
 import { 
   Home, 
   Users, 
@@ -10,7 +11,6 @@ import {
   BarChart3,
   Palette,
   LogOut,
-  Menu
 } from "lucide-react";
 import {
   Sidebar,
@@ -23,7 +23,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -75,7 +74,7 @@ const settingsItems = [
 ];
 
 export function AppSidebar() {
-  const [currentPath, setCurrentPath] = useState("/");
+  const location = useLocation();
 
   return (
     <Sidebar className="border-r border-gray-200">
@@ -104,18 +103,17 @@ export function AppSidebar() {
                     asChild
                     className="w-full justify-start space-x-3 py-3 px-3 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors"
                   >
-                    <a 
-                      href={item.url}
-                      onClick={() => setCurrentPath(item.url)}
+                    <Link 
+                      to={item.url}
                       className={`flex items-center ${
-                        currentPath === item.url 
+                        location.pathname === item.url 
                           ? 'bg-primary-50 text-primary-700 font-medium' 
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
                       <item.icon className="w-5 h-5" />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -135,18 +133,17 @@ export function AppSidebar() {
                     asChild
                     className="w-full justify-start space-x-3 py-3 px-3 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
                   >
-                    <a 
-                      href={item.url}
-                      onClick={() => setCurrentPath(item.url)}
+                    <Link 
+                      to={item.url}
                       className={`flex items-center ${
-                        currentPath === item.url 
+                        location.pathname === item.url 
                           ? 'bg-primary-50 text-primary-700 font-medium' 
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
                       <item.icon className="w-5 h-5" />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
