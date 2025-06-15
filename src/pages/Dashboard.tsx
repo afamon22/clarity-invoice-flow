@@ -1,4 +1,4 @@
-
+import { useState } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { InvoiceForm } from "@/components/InvoiceForm";
 import { 
   BarChart, 
   Bar, 
@@ -107,6 +108,8 @@ const upcomingReminders = [
 ];
 
 export default function Dashboard() {
+  const [isInvoiceFormOpen, setIsInvoiceFormOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -121,7 +124,10 @@ export default function Dashboard() {
               <Eye className="w-4 h-4 mr-2" />
               Voir tout
             </Button>
-            <Button className="bg-gradient-primary hover:opacity-90">
+            <Button 
+              className="bg-gradient-primary hover:opacity-90"
+              onClick={() => setIsInvoiceFormOpen(true)}
+            >
               <Plus className="w-4 h-4 mr-2" />
               Nouvelle Facture
             </Button>
@@ -369,6 +375,12 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Invoice Form Modal */}
+      <InvoiceForm 
+        isOpen={isInvoiceFormOpen}
+        onClose={() => setIsInvoiceFormOpen(false)}
+      />
     </div>
   );
 }
