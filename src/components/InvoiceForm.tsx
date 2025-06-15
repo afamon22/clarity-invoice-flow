@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface InvoiceFormProps {
   isOpen: boolean;
@@ -27,6 +28,24 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { id: '1', description: '', quantity: 1, price: 0 }
   ]);
+  const [province, setProvince] = useState('QC'); // Défaut Québec pour TPS + TVQ
+
+  // Taux de taxes canadiens
+  const TAX_RATES = {
+    'QC': { tps: 0.05, tvq: 0.09975, name: 'Québec' },
+    'ON': { tps: 0.13, tvq: 0, name: 'Ontario (HST)' },
+    'BC': { tps: 0.05, tvq: 0.07, name: 'Colombie-Britannique' },
+    'AB': { tps: 0.05, tvq: 0, name: 'Alberta' },
+    'SK': { tps: 0.05, tvq: 0.06, name: 'Saskatchewan' },
+    'MB': { tps: 0.05, tvq: 0.07, name: 'Manitoba' },
+    'NB': { tps: 0.15, tvq: 0, name: 'Nouveau-Brunswick (HST)' },
+    'NS': { tps: 0.15, tvq: 0, name: 'Nouvelle-Écosse (HST)' },
+    'PE': { tps: 0.15, tvq: 0, name: 'Île-du-Prince-Édouard (HST)' },
+    'NL': { tps: 0.15, tvq: 0, name: 'Terre-Neuve-et-Labrador (HST)' },
+    'YT': { tps: 0.05, tvq: 0, name: 'Yukon' },
+    'NT': { tps: 0.05, tvq: 0, name: 'Territoires du Nord-Ouest' },
+    'NU': { tps: 0.05, tvq: 0, name: 'Nunavut' }
+  };
 
   const addLineItem = () => {
     const newItem: LineItem = {
@@ -50,8 +69,20 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
     ));
   };
 
-  const calculateTotal = () => {
+  const calculateSubtotal = () => {
     return lineItems.reduce((total, item) => total + (item.quantity * item.price), 0);
+  };
+
+  const calculateTPS = () => {
+    return calculateSubtotal() * TAX_RATES[province as keyof typeof TAX_RATES].tps;
+  };
+
+  const calculateTVQ = () => {
+    return calculateSubtotal() * TAX_RATES[province as keyof typeof TAX_RATES].tvq;
+  };
+
+  const calculateTotal = () => {
+    return calculateSubtotal() + calculateTPS() + calculateTVQ();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -62,6 +93,10 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
       invoiceNumber,
       dueDate,
       lineItems,
+      province,
+      subtotal: calculateSubtotal(),
+      tps: calculateTPS(),
+      tvq: calculateTVQ(),
       total: calculateTotal()
     });
     // Ici on pourrait ajouter la logique pour sauvegarder la facture
@@ -74,6 +109,7 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
     setInvoiceNumber(`FAC-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`);
     setDueDate('');
     setLineItems([{ id: '1', description: '', quantity: 1, price: 0 }]);
+    setProvince('QC');
   };
 
   const handleClose = () => {
@@ -125,7 +161,7 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
           <Card>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Détails de la facture</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="invoiceNumber">Numéro de facture</Label>
                   <Input
@@ -144,6 +180,21 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
                     onChange={(e) => setDueDate(e.target.value)}
                     required
                   />
+                </div>
+                <div>
+                  <Label htmlFor="province">Province/Territoire *</Label>
+                  <Select value={province} onValueChange={setProvince}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner une province" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(TAX_RATES).map(([code, data]) => (
+                        <SelectItem key={code} value={code}>
+                          {data.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>
@@ -188,7 +239,7 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
                       />
                     </div>
                     <div className="col-span-3">
-                      <Label htmlFor={`price-${item.id}`}>Prix unitaire (€)</Label>
+                      <Label htmlFor={`price-${item.id}`}>Prix unitaire (CAD $)</Label>
                       <Input
                         id={`price-${item.id}`}
                         type="number"
@@ -201,7 +252,7 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
                     <div className="col-span-1">
                       <Label>Total</Label>
                       <div className="h-10 flex items-center justify-center bg-gray-50 rounded-md text-sm font-medium">
-                        {(item.quantity * item.price).toFixed(2)}€
+                        {(item.quantity * item.price).toFixed(2)} $
                       </div>
                     </div>
                     <div className="col-span-1">
@@ -222,11 +273,25 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
 
               <div className="mt-6 pt-4 border-t">
                 <div className="flex justify-end">
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-gray-900">
-                      Total: {calculateTotal().toFixed(2)}€
-                    </p>
-                    <p className="text-sm text-gray-500">HT</p>
+                  <div className="text-right space-y-2 min-w-[200px]">
+                    <div className="flex justify-between text-sm">
+                      <span>Sous-total:</span>
+                      <span>{calculateSubtotal().toFixed(2)} $ CAD</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>TPS ({(TAX_RATES[province as keyof typeof TAX_RATES].tps * 100).toFixed(1)}%):</span>
+                      <span>{calculateTPS().toFixed(2)} $ CAD</span>
+                    </div>
+                    {TAX_RATES[province as keyof typeof TAX_RATES].tvq > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span>TVQ ({(TAX_RATES[province as keyof typeof TAX_RATES].tvq * 100).toFixed(3)}%):</span>
+                        <span>{calculateTVQ().toFixed(2)} $ CAD</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-lg font-semibold text-gray-900 pt-2 border-t">
+                      <span>Total:</span>
+                      <span>{calculateTotal().toFixed(2)} $ CAD</span>
+                    </div>
                   </div>
                 </div>
               </div>
