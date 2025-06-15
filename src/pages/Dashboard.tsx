@@ -1,8 +1,9 @@
+
 import { useState } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
-  Euro, 
+  DollarSign, 
   FileText, 
   Clock, 
   AlertTriangle,
@@ -143,7 +144,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 font-medium">Revenus ce mois</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">24 500€</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">24 500$ CAD</p>
                   <div className="flex items-center mt-2">
                     <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
                     <span className="text-sm text-green-600 font-medium">+12.5%</span>
@@ -151,7 +152,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Euro className="w-6 h-6 text-green-600" />
+                  <DollarSign className="w-6 h-6 text-green-600" />
                 </div>
               </div>
             </CardContent>
@@ -181,7 +182,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 font-medium">En attente</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">8 420€</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">8 420$ CAD</p>
                   <div className="flex items-center mt-2">
                     <Clock className="w-4 h-4 text-yellow-500 mr-1" />
                     <span className="text-sm text-yellow-600 font-medium">31 factures</span>
@@ -199,7 +200,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 font-medium">En retard</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">3 180€</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">3 180$ CAD</p>
                   <div className="flex items-center mt-2">
                     <AlertTriangle className="w-4 h-4 text-red-500 mr-1" />
                     <span className="text-sm text-red-600 font-medium">14 factures</span>
@@ -228,7 +229,7 @@ export default function Dashboard() {
                   <XAxis dataKey="name" stroke="#6B7280" fontSize={12} />
                   <YAxis stroke="#6B7280" fontSize={12} />
                   <Tooltip 
-                    formatter={(value) => [`${value}€`, '']}
+                    formatter={(value) => [`${value}$ CAD`, '']}
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #E5E7EB',
@@ -307,7 +308,7 @@ export default function Dashboard() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <p className="font-medium text-gray-900">{invoice.id}</p>
-                        <p className="font-semibold text-gray-900">{invoice.amount}€</p>
+                        <p className="font-semibold text-gray-900">{invoice.amount}$ CAD</p>
                       </div>
                       <p className="text-sm text-gray-600">{invoice.client}</p>
                       <p className="text-xs text-gray-500">Échéance: {invoice.dueDate}</p>
@@ -354,7 +355,7 @@ export default function Dashboard() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <p className="font-medium text-gray-900">{reminder.invoice}</p>
-                        <p className="font-semibold text-gray-900">{reminder.amount}€</p>
+                        <p className="font-semibold text-gray-900">{reminder.amount}$ CAD</p>
                       </div>
                       <p className="text-sm text-gray-600">{reminder.client}</p>
                       <p className="text-xs text-gray-500">En retard de {reminder.daysOverdue} jours</p>
