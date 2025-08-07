@@ -100,7 +100,7 @@ const Branding = () => {
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     <div className="w-24 h-16 bg-gray-200 rounded mb-2"></div>
-                    <h2 className="text-xl font-bold text-primary">ClarityBills</h2>
+                    <h2 className="text-xl font-bold text-primary">GroupeObv</h2>
                   </div>
                   <div className="text-right">
                     <h1 className="text-2xl font-bold text-gray-900">FACTURE</h1>

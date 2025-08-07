@@ -84,8 +84,8 @@ export function AppSidebar() {
             <FileText className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">ClarityBills</h2>
-            <p className="text-sm text-gray-500">Facturation PME</p>
+            <h2 className="text-xl font-bold text-gray-900">GroupeObv</h2>
+            <p className="text-sm text-gray-500">Gestion domaines</p>
           </div>
         </div>
       </SidebarHeader>
