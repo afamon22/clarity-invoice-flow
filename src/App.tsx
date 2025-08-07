@@ -12,6 +12,7 @@ import Analytics from "./pages/Analytics";
 import Team from "./pages/Team";
 import Branding from "./pages/Branding";
 import Settings from "./pages/Settings";
+import Domaines from "./pages/Domaines";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/team" element={<Team />} />
           <Route path="/branding" element={<Branding />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/domaines" element={<Domaines />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
