@@ -11,6 +11,8 @@ import {
   BarChart3,
   Palette,
   LogOut,
+  Globe,
+  Scale,
 } from "lucide-react";
 import {
   Sidebar,
@@ -32,6 +34,16 @@ const menuItems = [
     title: "Tableau de bord",
     url: "/",
     icon: Home,
+  },
+  {
+    title: "Domaines",
+    url: "/domaines",
+    icon: Globe,
+  },
+  {
+    title: "Loi 90",
+    url: "/loi-90",
+    icon: Scale,
   },
   {
     title: "Factures",
