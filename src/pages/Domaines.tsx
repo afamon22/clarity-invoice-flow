@@ -1,10 +1,12 @@
-import React from 'react';
-import { Globe, Search, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Globe, Search, Settings, Trash2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Layout } from '@/components/Layout';
 import { AddDomainDialog } from '@/components/AddDomainDialog';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 import {
   Table,
   TableBody,
@@ -13,66 +15,102 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
+interface Domaine {
+  id: string;
+  nom_client: string;
+  nom_domaine: string;
+  date_expiration: string;
+  date_rappel: string | null;
+  hebergement: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 const Domaines = () => {
-  const domaines = [
-    {
-      id: 1,
-      nom: 'edenstore.ca',
-      statut: 'Actif',
-      expiration: '2028-04-15',
-      statusColor: 'bg-green-500'
-    },
-    {
-      id: 2,
-      nom: 'lectubinspire.ca',
-      statut: 'Actif',
-      expiration: '2026-07-23',
-      statusColor: 'bg-green-500'
-    },
-    {
-      id: 3,
-      nom: 'annuaireobv.ca',
-      statut: 'Expiré',
-      expiration: '2026-07-19',
-      statusColor: 'bg-red-500'
-    },
-    {
-      id: 4,
-      nom: '100deplacer.ca',
-      statut: 'Actif',
-      expiration: '2026-06-21',
-      statusColor: 'bg-green-500'
-    },
-    {
-      id: 5,
-      nom: 'mutualadvoyage.com',
-      statut: 'Expirant',
-      expiration: '2026-06-02',
-      statusColor: 'bg-orange-500'
-    },
-    {
-      id: 6,
-      nom: 'servicesmccan.com',
-      statut: 'Actif',
-      expiration: '2026-05-31',
-      statusColor: 'bg-green-500'
-    },
-    {
-      id: 7,
-      nom: 'obvnews.ca',
-      statut: 'Actif',
-      expiration: '2026-05-13',
-      statusColor: 'bg-green-500'
-    },
-    {
-      id: 8,
-      nom: '3kfamegroup.ca',
-      statut: 'Actif',
-      expiration: '2026-05-01',
-      statusColor: 'bg-green-500'
+  const [domaines, setDomaines] = useState<Domaine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const { toast } = useToast();
+
+  const getStatut = (dateExpiration: string) => {
+    const today = new Date();
+    const expiration = new Date(dateExpiration);
+    const diffDays = Math.ceil((expiration.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return 'Expiré';
+    if (diffDays <= 30) return 'Expirant';
+    return 'Actif';
+  };
+
+  const fetchDomaines = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('domaines')
+        .select('*')
+        .order('date_expiration', { ascending: true });
+
+      if (error) throw error;
+      setDomaines(data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des domaines:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les domaines",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const deleteDomaine = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('domaines')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setDomaines(domaines.filter(d => d.id !== id));
+      toast({
+        title: "Succès",
+        description: "Domaine supprimé avec succès",
+      });
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le domaine",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDomainAdded = (newDomain: Domaine) => {
+    setDomaines([...domaines, newDomain]);
+  };
+
+  useEffect(() => {
+    fetchDomaines();
+  }, []);
+
+  const filteredDomaines = domaines.filter(domaine =>
+    domaine.nom_domaine.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    domaine.nom_client.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusVariant = (statut: string) => {
     switch (statut) {
@@ -87,6 +125,16 @@ const Domaines = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground">Chargement...</div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -100,23 +148,28 @@ const Domaines = () => {
               <p className="text-muted-foreground">Gestion des noms de domaine</p>
             </div>
           </div>
-          <AddDomainDialog onAdd={(domain) => console.log('Nouveau domaine:', domain)} />
+          <AddDomainDialog onAdd={handleDomainAdded} />
         </div>
 
         <div className="flex items-center gap-4">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input placeholder="Rechercher un domaine..." className="pl-10" />
+            <Input 
+              placeholder="Rechercher un domaine..." 
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
           <div className="flex gap-2">
             <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
-              {domaines.filter(d => d.statut === 'Actif').length} Actifs
+              {filteredDomaines.filter(d => getStatut(d.date_expiration) === 'Actif').length} Actifs
             </Badge>
             <Badge variant="outline" className="bg-orange-500/10 text-orange-700 border-orange-200">
-              {domaines.filter(d => d.statut === 'Expirant').length} Expirants
+              {filteredDomaines.filter(d => getStatut(d.date_expiration) === 'Expirant').length} Expirants
             </Badge>
             <Badge variant="outline" className="bg-red-500/10 text-red-700 border-red-200">
-              {domaines.filter(d => d.statut === 'Expiré').length} Expirés
+              {filteredDomaines.filter(d => getStatut(d.date_expiration) === 'Expiré').length} Expirés
             </Badge>
           </div>
         </div>
@@ -126,46 +179,84 @@ const Domaines = () => {
             <TableHeader>
               <TableRow>
                 <TableHead className="font-semibold">Domaine</TableHead>
+                <TableHead className="font-semibold">Client</TableHead>
                 <TableHead className="font-semibold">Statut</TableHead>
                 <TableHead className="font-semibold">Expiration</TableHead>
+                <TableHead className="font-semibold">Hébergement</TableHead>
                 <TableHead className="font-semibold text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {domaines.map((domaine) => (
-                <TableRow key={domaine.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-primary"></div>
-                      {domaine.nom}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusVariant(domaine.statut)}>
-                      {domaine.statut}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {new Date(domaine.expiration).toLocaleDateString('fr-FR')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="sm">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Gérer
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredDomaines.map((domaine) => {
+                const statut = getStatut(domaine.date_expiration);
+                return (
+                  <TableRow key={domaine.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-primary"></div>
+                        {domaine.nom_domaine}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {domaine.nom_client}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusVariant(statut)}>
+                        {statut}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(domaine.date_expiration).toLocaleDateString('fr-FR')}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={domaine.hebergement ? "default" : "secondary"}>
+                        {domaine.hebergement ? "Oui" : "Non"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button variant="outline" size="sm">
+                          <Edit className="w-4 h-4 mr-2" />
+                          Modifier
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Supprimer
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Supprimer le domaine</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Êtes-vous sûr de vouloir supprimer le domaine "{domaine.nom_domaine}" ? 
+                                Cette action est irréversible.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteDomaine(domaine.id)}>
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
 
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div>
-            Affichage de {domaines.length} domaines au total
+            Affichage de {filteredDomaines.length} domaines sur {domaines.length} au total
           </div>
           <div className="flex items-center gap-2">
-            <span>Lignes par page: 10</span>
+            <span>Mise à jour en temps réel</span>
           </div>
         </div>
       </div>

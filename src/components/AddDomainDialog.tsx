@@ -1,12 +1,5 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { CalendarIcon, Plus } from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-
-import { Button } from '@/components/ui/button';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -23,38 +16,58 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 
+// Schéma de validation pour le formulaire de domaine
 const formSchema = z.object({
-  nomClient: z.string().min(2, {
-    message: "Le nom du client doit contenir au moins 2 caractères.",
+  nomClient: z.string().min(1, {
+    message: "Le nom du client est requis.",
   }),
-  nomDomaine: z.string().min(3, {
-    message: "Le nom du domaine doit contenir au moins 3 caractères.",
+  nomDomaine: z.string().min(1, {
+    message: "Le nom de domaine est requis.",
   }),
   dateExpiration: z.date({
-    required_error: "Une date d'expiration est requise.",
+    required_error: "La date d'expiration est requise.",
   }),
-  dateRappel: z.date({
-    required_error: "Une date de rappel est requise.",
-  }),
+  dateRappel: z.date().optional(),
   hebergement: z.enum(["oui", "non"], {
     required_error: "Veuillez sélectionner une option d'hébergement.",
   }),
 });
 
+interface Domaine {
+  id: string;
+  nom_client: string;
+  nom_domaine: string;
+  date_expiration: string;
+  date_rappel: string | null;
+  hebergement: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 interface AddDomainDialogProps {
-  onAdd?: (domain: z.infer<typeof formSchema>) => void;
+  onAdd?: (domain: Domaine) => void;
 }
 
 export function AddDomainDialog({ onAdd }: AddDomainDialogProps) {
-  const [open, setOpen] = React.useState(false);
-
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -64,11 +77,44 @@ export function AddDomainDialog({ onAdd }: AddDomainDialogProps) {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    onAdd?.(values);
-    setOpen(false);
-    form.reset();
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('domaines')
+        .insert([
+          {
+            nom_client: values.nomClient,
+            nom_domaine: values.nomDomaine,
+            date_expiration: values.dateExpiration.toISOString().split('T')[0],
+            date_rappel: values.dateRappel ? values.dateRappel.toISOString().split('T')[0] : null,
+            hebergement: values.hebergement === "oui",
+            user_id: (await supabase.auth.getUser()).data.user?.id,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: "Domaine ajouté avec succès",
+      });
+
+      onAdd?.(data);
+      setOpen(false);
+      form.reset();
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'ajouter le domaine",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -164,7 +210,7 @@ export function AddDomainDialog({ onAdd }: AddDomainDialogProps) {
                 name="dateRappel"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Date de rappel</FormLabel>
+                    <FormLabel>Date de rappel (optionnel)</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -234,10 +280,12 @@ export function AddDomainDialog({ onAdd }: AddDomainDialogProps) {
             />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
                 Annuler
               </Button>
-              <Button type="submit">Ajouter le domaine</Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Ajout en cours..." : "Ajouter le domaine"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
