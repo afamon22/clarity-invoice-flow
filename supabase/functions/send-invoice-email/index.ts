@@ -45,8 +45,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const emailResponse = await resend.emails.send({
       from: "GroupeOBV <onboarding@resend.dev>",
-      to: [clientData.email],
-      subject: `Facture ${invoiceData.numero_facture} - GroupeOBV`,
+      to: ["amonanaka22@gmail.com"], // Temporaire: utilise votre email pour les tests
+      subject: `Facture ${invoiceData.numero_facture} - Client: ${clientData.nom}`,
       html: invoiceHtml,
     });
 
