@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Layout } from '@/components/Layout';
+import { AddTeamMemberDialog } from '@/components/AddTeamMemberDialog';
 
 const Team = () => {
   const teamMembers = [
@@ -41,10 +42,12 @@ const Team = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900">Équipe & Rôles</h1>
-          <Button className="bg-primary hover:bg-primary/90">
-            <UserPlus className="w-4 h-4 mr-2" />
-            Inviter un membre
-          </Button>
+          <AddTeamMemberDialog>
+            <Button className="bg-primary hover:bg-primary/90">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Inviter un membre
+            </Button>
+          </AddTeamMemberDialog>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
