@@ -17,8 +17,14 @@ interface Invoice {
   date_echeance: string;
   statut: string;
   statut_label: string;
+  items?: any[];
+  sous_total: number;
+  tps: number;
+  tvq: number;
+  total: number;
   clients?: {
     nom: string;
+    email: string;
   };
 }
 
@@ -27,6 +33,7 @@ const Invoices = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchInvoices = async () => {
@@ -36,7 +43,8 @@ const Invoices = () => {
         .select(`
           *,
           clients (
-            nom
+            nom,
+            email
           )
         `)
         .order('created_at', { ascending: false });
@@ -70,6 +78,57 @@ const Invoices = () => {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'overdue': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleSendInvoice = async (invoice: Invoice) => {
+    if (!invoice.clients?.nom) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'envoyer la facture : client non trouvé.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingInvoice(invoice.id);
+    
+    try {
+      const { error } = await supabase.functions.invoke('send-invoice-email', {
+        body: {
+          invoiceData: {
+            numero_facture: invoice.numero_facture,
+            montant: invoice.montant,
+            date_facture: invoice.date_facture,
+            date_echeance: invoice.date_echeance,
+            items: invoice.items || [],
+            sous_total: invoice.sous_total,
+            tps: invoice.tps,
+            tvq: invoice.tvq,
+            total: invoice.total,
+          },
+          clientData: {
+            nom: invoice.clients.nom,
+            email: invoice.clients.email || 'client@email.com',
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: `Facture ${invoice.numero_facture} envoyée par email.`,
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi de la facture:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'envoyer la facture par email.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingInvoice(null);
     }
   };
 
@@ -137,9 +196,13 @@ const Invoices = () => {
                         <Eye className="w-4 h-4 mr-1" />
                         Voir
                       </Button>
-                      <Button size="sm">
+                      <Button 
+                        size="sm"
+                        onClick={() => handleSendInvoice(invoice)}
+                        disabled={sendingInvoice === invoice.id}
+                      >
                         <Send className="w-4 h-4 mr-1" />
-                        Envoyer
+                        {sendingInvoice === invoice.id ? 'Envoi...' : 'Envoyer'}
                       </Button>
                       <Button variant="ghost" size="sm">
                         <MoreHorizontal className="w-4 h-4" />
