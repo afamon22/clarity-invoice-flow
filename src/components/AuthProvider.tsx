@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   userRole: 'admin' | 'user' | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, userData?: { role?: string }) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: 'admin@groupeobv.com',
             password: 'Synergie2024Admin',
             options: {
+              emailRedirectTo: `${window.location.origin}/`,
               data: {
                 role: 'admin',
                 username: 'obv2024G'
@@ -104,6 +106,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signUp = async (email: string, password: string, userData?: { role?: string }) => {
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            role: userData?.role || 'user'
+          }
+        }
+      });
+      
+      if (error) {
+        return { error: error.message };
+      }
+      
+      return {};
+    } catch (error) {
+      return { error: 'Erreur d\'inscription' };
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -112,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     userRole,
     signIn,
+    signUp,
     signOut,
     loading
   };

@@ -1,5 +1,5 @@
 import { useAuth } from '@/components/AuthProvider';
-import { LoginForm } from '@/components/LoginForm';
+import { AuthForm } from '@/components/AuthForm';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -22,7 +22,7 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }
 
   if (!user) {
-    return <LoginForm />;
+    return <AuthForm />;
   }
 
   if (requireAdmin && userRole !== 'admin') {
