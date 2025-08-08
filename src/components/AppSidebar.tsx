@@ -92,22 +92,22 @@ export function AppSidebar() {
   const { signOut, userRole, user } = useAuth();
 
   return (
-    <Sidebar className="border-r border-gray-200">
-      <SidebarHeader className="p-6 border-b border-gray-100">
+    <Sidebar className="border-r border-border bg-sidebar-background">
+      <SidebarHeader className="p-6 border-b border-sidebar-border">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-            <FileText className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+            <FileText className="w-6 h-6 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">GroupeObv</h2>
-            <p className="text-sm text-gray-500">Gestion domaines</p>
+            <h2 className="text-xl font-bold text-sidebar-foreground">GroupeObv</h2>
+            <p className="text-sm text-sidebar-foreground/70">Gestion domaines</p>
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent className="px-4 py-6">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider mb-3">
             Navigation
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -116,14 +116,14 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     asChild
-                    className="w-full justify-start space-x-3 py-3 px-3 rounded-lg hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                    className="w-full justify-start space-x-3 py-3 px-3 rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
                   >
                     <Link 
                       to={item.url}
-                      className={`flex items-center ${
+                      className={`flex items-center font-medium ${
                         location.pathname === item.url 
-                          ? 'bg-primary-50 text-primary-700 font-medium' 
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'bg-sidebar-primary text-sidebar-primary-foreground' 
+                          : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'
                       }`}
                     >
                       <item.icon className="w-5 h-5" />
@@ -137,7 +137,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup className="mt-8">
-          <SidebarGroupLabel className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/70 uppercase tracking-wider mb-3">
             Configuration
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -146,14 +146,14 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     asChild
-                    className="w-full justify-start space-x-3 py-3 px-3 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                    className="w-full justify-start space-x-3 py-3 px-3 rounded-lg hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
                   >
                     <Link 
                       to={item.url}
-                      className={`flex items-center ${
+                      className={`flex items-center font-medium ${
                         location.pathname === item.url 
-                          ? 'bg-primary-50 text-primary-700 font-medium' 
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'bg-sidebar-primary text-sidebar-primary-foreground' 
+                          : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'
                       }`}
                     >
                       <item.icon className="w-5 h-5" />
@@ -167,20 +167,20 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-gray-100">
+      <SidebarFooter className="p-4 border-t border-sidebar-border">
         <div className="flex items-center space-x-3 mb-4">
           <Avatar className="w-10 h-10">
             <AvatarImage src="/api/placeholder/40/40" />
-            <AvatarFallback className="bg-primary-100 text-primary-700 font-semibold">
+            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
               {userRole === 'admin' ? 'AD' : 'US'}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-sm font-semibold text-sidebar-foreground truncate">
               {userRole === 'admin' ? 'Administrateur' : user?.email || 'Utilisateur'}
             </p>
-            <p className="text-xs text-gray-500 truncate">
-              {userRole === 'admin' ? 'Admin - GroupeObv' : 'Utilisateur standard'}
+            <p className="text-xs text-sidebar-foreground/80 truncate font-medium">
+              {userRole === 'admin' ? 'Admin - GroupeObv' : user?.email || 'Utilisateur standard'}
             </p>
           </div>
           <ThemeToggle />
@@ -188,7 +188,7 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+          className="w-full justify-start text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent font-medium"
           onClick={signOut}
         >
           <LogOut className="w-4 h-4 mr-2" />
