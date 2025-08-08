@@ -28,6 +28,8 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   nomClient: z.string().min(2, {
@@ -50,6 +52,8 @@ interface AddLoi25DialogProps {
 
 export function AddLoi25Dialog({ onAdd }: AddLoi25DialogProps) {
   const [open, setOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -201,7 +205,9 @@ export function AddLoi25Dialog({ onAdd }: AddLoi25DialogProps) {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Annuler
               </Button>
-              <Button type="submit">Ajouter l'entrée</Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Ajout..." : "Ajouter l'entrée"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>

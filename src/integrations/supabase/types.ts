@@ -50,6 +50,39 @@ export type Database = {
         }
         Relationships: []
       }
+      loi25_entries: {
+        Row: {
+          created_at: string
+          date_expiration: string
+          date_rappel: string | null
+          domaine: string
+          id: string
+          nom_client: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_expiration: string
+          date_rappel?: string | null
+          domaine: string
+          id?: string
+          nom_client: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_expiration?: string
+          date_rappel?: string | null
+          domaine?: string
+          id?: string
+          nom_client?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       team_invitations: {
         Row: {
           created_at: string
