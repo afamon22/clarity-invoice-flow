@@ -1,9 +1,10 @@
 import React from 'react';
-import { Globe, Plus, Search, Settings } from 'lucide-react';
+import { Globe, Search, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Layout } from '@/components/Layout';
+import { AddDomainDialog } from '@/components/AddDomainDialog';
 import {
   Table,
   TableBody,
@@ -99,10 +100,7 @@ const Domaines = () => {
               <p className="text-muted-foreground">Gestion des noms de domaine</p>
             </div>
           </div>
-          <Button className="bg-primary hover:bg-primary/90">
-            <Plus className="w-4 h-4 mr-2" />
-            Ajouter un domaine
-          </Button>
+          <AddDomainDialog onAdd={(domain) => console.log('Nouveau domaine:', domain)} />
         </div>
 
         <div className="flex items-center gap-4">
