@@ -1,8 +1,11 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
-  user: { email: string; id: string } | null;
-  userRole: 'admin' | 'user' | null;
+  user: User | null;
+  session: Session | null;
+  userRole: 'admin' | 'user' | 'comptable' | 'observateur' | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   loading: boolean;
@@ -11,81 +14,92 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<{ email: string; id: string } | null>(null);
-  const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'user' | 'comptable' | 'observateur' | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Vérifier s'il y a une session sauvegardée
-    const savedUser = localStorage.getItem('user');
-    const savedRole = localStorage.getItem('userRole');
-    
-    if (savedUser && savedRole) {
-      setUser(JSON.parse(savedUser));
-      setUserRole(savedRole as 'admin' | 'user');
-    }
-    
-    setLoading(false);
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Fetch user profile to get role
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          setUserRole((profile?.role as 'admin' | 'user' | 'comptable' | 'observateur') || 'user');
+        } else {
+          setUserRole(null);
+        }
+        
+        setLoading(false);
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        // Fetch user profile to get role
+        supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            setUserRole((profile?.role as 'admin' | 'user' | 'comptable' | 'observateur') || 'user');
+            setLoading(false);
+          });
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Authentification admin locale
-      if (email === 'obv2024G' && password === 'Synergie2024') {
-        const adminUser = {
-          email: 'admin@groupeobv.com',
-          id: 'admin-001'
-        };
-        
-        setUser(adminUser);
-        setUserRole('admin');
-        
-        // Sauvegarder la session
-        localStorage.setItem('user', JSON.stringify(adminUser));
-        localStorage.setItem('userRole', 'admin');
-        
-        return {};
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { error: error.message };
       }
-      
-      // Pour d'autres utilisateurs (à configurer plus tard)
-      if (email && password) {
-        const regularUser = {
-          email: email,
-          id: 'user-' + Date.now()
-        };
-        
-        setUser(regularUser);
-        setUserRole('user');
-        
-        localStorage.setItem('user', JSON.stringify(regularUser));
-        localStorage.setItem('userRole', 'user');
-        
-        return {};
-      }
-      
-      return { error: 'Identifiants invalides' };
+
+      return {};
     } catch (error) {
-      return { error: 'Erreur de connexion' };
+      return { error: 'Une erreur est survenue lors de la connexion' };
     }
   };
 
   const signOut = async () => {
+    await supabase.auth.signOut();
     setUser(null);
+    setSession(null);
     setUserRole(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('userRole');
-  };
-
-  const value = {
-    user,
-    userRole,
-    signIn,
-    signOut,
-    loading
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      session,
+      userRole,
+      signIn,
+      signOut,
+      loading
+    }}>
       {children}
     </AuthContext.Provider>
   );
