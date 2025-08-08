@@ -1,1 +1,0 @@
-UPDATE user_profiles SET role = 'admin' WHERE email = 'anakaf@yahoo.fr';
