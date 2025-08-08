@@ -29,6 +29,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/AuthProvider";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const menuItems = [
   {
@@ -182,6 +183,7 @@ export function AppSidebar() {
               {userRole === 'admin' ? 'Admin - GroupeObv' : 'Utilisateur standard'}
             </p>
           </div>
+          <ThemeToggle />
         </div>
         <Button
           variant="ghost"
