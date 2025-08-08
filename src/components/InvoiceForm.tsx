@@ -1,12 +1,13 @@
 
 import React, { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 interface InvoiceFormProps {
   isOpen: boolean;
@@ -26,7 +27,9 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
   const [invoiceNumber, setInvoiceNumber] = useState(`FAC-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`);
   const [dueDate, setDueDate] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([
-    { id: '1', description: '', quantity: 1, price: 0 }
+    { id: '1', description: 'Conformité Loi 25 - Audit initial', quantity: 1, price: 500.00 },
+    { id: '2', description: 'Enregistrement nom de domaine (.com)', quantity: 1, price: 15.99 },
+    { id: '3', description: 'Hébergement web - Plan professionnel (1 an)', quantity: 1, price: 120.00 }
   ]);
   const [province, setProvince] = useState('QC'); // Défaut Québec pour TPS + TVQ
 
@@ -46,6 +49,22 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
     'NT': { tps: 0.05, tvq: 0, name: 'Territoires du Nord-Ouest' },
     'NU': { tps: 0.05, tvq: 0, name: 'Nunavut' }
   };
+
+  // Services types prédéfinis
+  const SERVICE_TEMPLATES = [
+    { description: 'Conformité Loi 25 - Audit initial', price: 500.00 },
+    { description: 'Conformité Loi 25 - Mise en conformité complète', price: 1200.00 },
+    { description: 'Conformité Loi 25 - Suivi annuel', price: 300.00 },
+    { description: 'Enregistrement nom de domaine (.com)', price: 15.99 },
+    { description: 'Enregistrement nom de domaine (.ca)', price: 19.99 },
+    { description: 'Renouvellement nom de domaine (.com)', price: 15.99 },
+    { description: 'Hébergement web - Plan basique (1 an)', price: 60.00 },
+    { description: 'Hébergement web - Plan professionnel (1 an)', price: 120.00 },
+    { description: 'Hébergement web - Plan entreprise (1 an)', price: 240.00 },
+    { description: 'Migration hébergement', price: 150.00 },
+    { description: 'Configuration SSL', price: 50.00 },
+    { description: 'Maintenance mensuelle', price: 75.00 }
+  ];
 
   const addLineItem = () => {
     const newItem: LineItem = {
@@ -108,7 +127,11 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
     setClientEmail('');
     setInvoiceNumber(`FAC-${new Date().getFullYear()}-${String(Date.now()).slice(-3)}`);
     setDueDate('');
-    setLineItems([{ id: '1', description: '', quantity: 1, price: 0 }]);
+    setLineItems([
+      { id: '1', description: 'Conformité Loi 25 - Audit initial', quantity: 1, price: 500.00 },
+      { id: '2', description: 'Enregistrement nom de domaine (.com)', quantity: 1, price: 15.99 },
+      { id: '3', description: 'Hébergement web - Plan professionnel (1 an)', quantity: 1, price: 120.00 }
+    ]);
     setProvince('QC');
   };
 
@@ -204,7 +227,7 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
           <Card>
             <CardContent className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Articles</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Services</h3>
                 <Button
                   type="button"
                   variant="outline"
@@ -212,8 +235,39 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
                   onClick={addLineItem}
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Ajouter une ligne
+                  Ajouter un service
                 </Button>
+              </div>
+
+              {/* Services templates */}
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-start space-x-2 mb-3">
+                  <Lightbulb className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-blue-900">Services suggérés</h4>
+                    <p className="text-sm text-blue-700">Cliquez pour ajouter rapidement un service à votre facture</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {SERVICE_TEMPLATES.map((template, index) => (
+                    <Badge
+                      key={index}
+                      variant="secondary"
+                      className="cursor-pointer hover:bg-blue-100 transition-colors"
+                      onClick={() => {
+                        const newItem: LineItem = {
+                          id: Date.now().toString(),
+                          description: template.description,
+                          quantity: 1,
+                          price: template.price
+                        };
+                        setLineItems([...lineItems, newItem]);
+                      }}
+                    >
+                      {template.description} - {template.price.toFixed(2)} $ CAD
+                    </Badge>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -225,7 +279,7 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
                         id={`description-${item.id}`}
                         value={item.description}
                         onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                        placeholder="Description du service ou produit"
+                        placeholder="Ex: Conformité Loi 25, Nom de domaine, Hébergement..."
                       />
                     </div>
                     <div className="col-span-2">

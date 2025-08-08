@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FileText, Plus, Filter, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Layout } from '@/components/Layout';
+import { InvoiceForm } from '@/components/InvoiceForm';
 
 const Invoices = () => {
+  const [isInvoiceFormOpen, setIsInvoiceFormOpen] = useState(false);
+  
   const invoices = [
     {
       id: 'INV-001',
@@ -48,7 +51,10 @@ const Invoices = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900">Factures</h1>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button 
+            className="bg-primary hover:bg-primary/90"
+            onClick={() => setIsInvoiceFormOpen(true)}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Nouvelle facture
           </Button>
@@ -94,6 +100,11 @@ const Invoices = () => {
           ))}
         </div>
       </div>
+
+      <InvoiceForm 
+        isOpen={isInvoiceFormOpen}
+        onClose={() => setIsInvoiceFormOpen(false)}
+      />
     </Layout>
   );
 };
