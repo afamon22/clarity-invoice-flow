@@ -1,9 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { User } from '@supabase/supabase-js';
 
 interface AuthContextType {
-  user: User | null;
+  user: { email: string; id: string } | null;
   userRole: 'admin' | 'user' | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
@@ -13,99 +11,69 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<{ email: string; id: string } | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Récupérer la session actuelle
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        determineUserRole(session.user);
-      }
-      setLoading(false);
-    });
-
-    // Écouter les changements d'auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        determineUserRole(session.user);
-      } else {
-        setUserRole(null);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const determineUserRole = async (user: User) => {
-    // Vérifier si c'est l'admin avec l'email spécifique
-    if (user.email === 'admin@groupeobv.com') {
-      setUserRole('admin');
-    } else {
-      setUserRole('user');
+    // Vérifier s'il y a une session sauvegardée
+    const savedUser = localStorage.getItem('user');
+    const savedRole = localStorage.getItem('userRole');
+    
+    if (savedUser && savedRole) {
+      setUser(JSON.parse(savedUser));
+      setUserRole(savedRole as 'admin' | 'user');
     }
-  };
+    
+    setLoading(false);
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Connexion admin spéciale
+      // Authentification admin locale
       if (email === 'obv2024G' && password === 'Synergie2024') {
-        const { error } = await supabase.auth.signInWithPassword({
+        const adminUser = {
           email: 'admin@groupeobv.com',
-          password: 'Synergie2024Admin'
-        });
+          id: 'admin-001'
+        };
         
-        if (error) {
-          // Si l'admin n'existe pas encore, le créer
-          const { error: signUpError } = await supabase.auth.signUp({
-            email: 'admin@groupeobv.com',
-            password: 'Synergie2024Admin',
-            options: {
-              data: {
-                role: 'admin',
-                username: 'obv2024G'
-              }
-            }
-          });
-          
-          if (signUpError) {
-            return { error: signUpError.message };
-          }
-          
-          // Réessayer la connexion
-          const { error: retryError } = await supabase.auth.signInWithPassword({
-            email: 'admin@groupeobv.com',
-            password: 'Synergie2024Admin'
-          });
-          
-          if (retryError) {
-            return { error: retryError.message };
-          }
-        }
-      } else {
-        // Connexion normale pour les autres utilisateurs
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
+        setUser(adminUser);
+        setUserRole('admin');
         
-        if (error) {
-          return { error: error.message };
-        }
+        // Sauvegarder la session
+        localStorage.setItem('user', JSON.stringify(adminUser));
+        localStorage.setItem('userRole', 'admin');
+        
+        return {};
       }
       
-      return {};
+      // Pour d'autres utilisateurs (à configurer plus tard)
+      if (email && password) {
+        const regularUser = {
+          email: email,
+          id: 'user-' + Date.now()
+        };
+        
+        setUser(regularUser);
+        setUserRole('user');
+        
+        localStorage.setItem('user', JSON.stringify(regularUser));
+        localStorage.setItem('userRole', 'user');
+        
+        return {};
+      }
+      
+      return { error: 'Identifiants invalides' };
     } catch (error) {
       return { error: 'Erreur de connexion' };
     }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    setUser(null);
+    setUserRole(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('userRole');
   };
 
   const value = {
