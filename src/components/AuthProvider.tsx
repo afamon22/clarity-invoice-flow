@@ -25,37 +25,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('user_profiles')
         .select('role')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
       
       setUserRole((profile?.role as 'admin' | 'user' | 'comptable' | 'observateur') || 'user');
     } catch (error) {
       console.error('Error fetching user role:', error);
       setUserRole('user');
     }
+    setLoading(false);
   };
 
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!mounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Defer Supabase calls to avoid deadlocks
           setTimeout(() => {
-            fetchUserRole(session.user.id);
+            if (mounted) fetchUserRole(session.user.id);
           }, 0);
         } else {
           setUserRole(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -66,7 +71,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
