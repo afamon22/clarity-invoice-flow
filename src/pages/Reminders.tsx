@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Layout } from '@/components/Layout';
+import { AIAssistantDialog } from '@/components/AIAssistantDialog';
 
 const Reminders = () => {
   const reminders = [
@@ -50,10 +51,12 @@ const Reminders = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900">Rappels</h1>
-          <Button className="bg-primary hover:bg-primary/90">
-            <Bell className="w-4 h-4 mr-2" />
-            Assistant IA
-          </Button>
+          <AIAssistantDialog>
+            <Button className="bg-primary hover:bg-primary/90">
+              <Bell className="w-4 h-4 mr-2" />
+              Assistant IA
+            </Button>
+          </AIAssistantDialog>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
