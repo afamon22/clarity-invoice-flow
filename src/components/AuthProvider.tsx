@@ -19,22 +19,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<'admin' | 'user' | 'comptable' | 'observateur' | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+      
+      setUserRole((profile?.role as 'admin' | 'user' | 'comptable' | 'observateur') || 'user');
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+      setUserRole('user');
+    }
+  };
+
   useEffect(() => {
-    // Set up auth state listener FIRST
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile to get role
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .single();
-          
-          setUserRole((profile?.role as 'admin' | 'user' | 'comptable' | 'observateur') || 'user');
+          // Defer Supabase calls to avoid deadlocks
+          setTimeout(() => {
+            fetchUserRole(session.user.id);
+          }, 0);
         } else {
           setUserRole(null);
         }
@@ -43,25 +54,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // THEN check for existing session
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
       if (session?.user) {
-        // Fetch user profile to get role
-        supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single()
-          .then(({ data: profile }) => {
-            setUserRole((profile?.role as 'admin' | 'user' | 'comptable' | 'observateur') || 'user');
-            setLoading(false);
-          });
-      } else {
-        setLoading(false);
+        setSession(session);
+        setUser(session.user);
+        fetchUserRole(session.user.id);
       }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
