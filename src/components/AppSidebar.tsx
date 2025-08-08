@@ -41,8 +41,8 @@ const menuItems = [
     icon: Globe,
   },
   {
-    title: "Loi 90",
-    url: "/loi-90",
+    title: "Loi 25",
+    url: "/loi25",
     icon: Scale,
   },
   {
