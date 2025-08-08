@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/components/AuthProvider";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Invoices from "./pages/Invoices";
 import Clients from "./pages/Clients";
@@ -20,26 +22,68 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/invoices" element={<Invoices />} />
-          <Route path="/clients" element={<Clients />} />
-          <Route path="/reminders" element={<Reminders />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/team" element={<Team />} />
-          <Route path="/branding" element={<Branding />} />
-          <Route path="/settings" element={<Settings />} />
-            <Route path="/domaines" element={<Domaines />} />
-            <Route path="/loi25" element={<Loi25 />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
+            } />
+            <Route path="/invoices" element={
+              <ProtectedRoute>
+                <Invoices />
+              </ProtectedRoute>
+            } />
+            <Route path="/clients" element={
+              <ProtectedRoute>
+                <Clients />
+              </ProtectedRoute>
+            } />
+            <Route path="/reminders" element={
+              <ProtectedRoute>
+                <Reminders />
+              </ProtectedRoute>
+            } />
+            <Route path="/analytics" element={
+              <ProtectedRoute requireAdmin>
+                <Analytics />
+              </ProtectedRoute>
+            } />
+            <Route path="/team" element={
+              <ProtectedRoute requireAdmin>
+                <Team />
+              </ProtectedRoute>
+            } />
+            <Route path="/branding" element={
+              <ProtectedRoute requireAdmin>
+                <Branding />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute requireAdmin>
+                <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/domaines" element={
+              <ProtectedRoute>
+                <Domaines />
+              </ProtectedRoute>
+            } />
+            <Route path="/loi25" element={
+              <ProtectedRoute>
+                <Loi25 />
+              </ProtectedRoute>
+            } />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

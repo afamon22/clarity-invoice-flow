@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/components/AuthProvider";
 
 const menuItems = [
   {
@@ -87,6 +88,7 @@ const settingsItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const { signOut, userRole, user } = useAuth();
 
   return (
     <Sidebar className="border-r border-gray-200">
@@ -169,15 +171,15 @@ export function AppSidebar() {
           <Avatar className="w-10 h-10">
             <AvatarImage src="/api/placeholder/40/40" />
             <AvatarFallback className="bg-primary-100 text-primary-700 font-semibold">
-              JD
+              {userRole === 'admin' ? 'AD' : 'US'}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">
-              Jean Dupont
+              {userRole === 'admin' ? 'Administrateur' : user?.email || 'Utilisateur'}
             </p>
             <p className="text-xs text-gray-500 truncate">
-              Administrateur
+              {userRole === 'admin' ? 'Admin - GroupeObv' : 'Utilisateur standard'}
             </p>
           </div>
         </div>
@@ -185,6 +187,7 @@ export function AppSidebar() {
           variant="ghost"
           size="sm"
           className="w-full justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+          onClick={signOut}
         >
           <LogOut className="w-4 h-4 mr-2" />
           Déconnexion
