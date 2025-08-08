@@ -50,11 +50,11 @@ const App = () => (
                 <Reminders />
               </ProtectedRoute>
             } />
-            <Route path="/analytics" element={
-              <ProtectedRoute requireAdmin>
-                <Analytics />
-              </ProtectedRoute>
-            } />
+          <Route path="/analytics" element={
+            <ProtectedRoute>
+              <Analytics />
+            </ProtectedRoute>
+          } />
             <Route path="/team" element={
               <ProtectedRoute requireAdmin>
                 <Team />

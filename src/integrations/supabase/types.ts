@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      clients: {
+        Row: {
+          adresse: string | null
+          created_at: string
+          email: string
+          id: string
+          nom: string
+          telephone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          adresse?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          nom: string
+          telephone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          adresse?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          nom?: string
+          telephone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       domaines: {
         Row: {
           created_at: string
@@ -50,6 +83,74 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          date_echeance: string
+          date_facture: string
+          id: string
+          items: Json | null
+          montant: number
+          numero_facture: string
+          province: string | null
+          sous_total: number
+          statut: string
+          statut_label: string
+          total: number
+          tps: number
+          tvq: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          date_echeance: string
+          date_facture?: string
+          id?: string
+          items?: Json | null
+          montant: number
+          numero_facture: string
+          province?: string | null
+          sous_total?: number
+          statut?: string
+          statut_label?: string
+          total?: number
+          tps?: number
+          tvq?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          date_echeance?: string
+          date_facture?: string
+          id?: string
+          items?: Json | null
+          montant?: number
+          numero_facture?: string
+          province?: string | null
+          sous_total?: number
+          statut?: string
+          statut_label?: string
+          total?: number
+          tps?: number
+          tvq?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loi25_entries: {
         Row: {
           created_at: string
@@ -82,6 +183,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      reminders: {
+        Row: {
+          created_at: string
+          derniere_relance: string | null
+          id: string
+          invoice_id: string | null
+          jours_retard: number
+          statut: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          derniere_relance?: string | null
+          id?: string
+          invoice_id?: string | null
+          jours_retard?: number
+          statut?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          derniere_relance?: string | null
+          id?: string
+          invoice_id?: string | null
+          jours_retard?: number
+          statut?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_invitations: {
         Row: {

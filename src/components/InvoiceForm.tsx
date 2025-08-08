@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 
 interface InvoiceFormProps {
   isOpen: boolean;
@@ -32,6 +34,7 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
     { id: '3', description: 'Hébergement web - Plan professionnel (1 an)', quantity: 1, price: 120.00 }
   ]);
   const [province, setProvince] = useState('QC'); // Défaut Québec pour TPS + TVQ
+  const { toast } = useToast();
 
   // Taux de taxes canadiens
   const TAX_RATES = {
@@ -104,22 +107,63 @@ export const InvoiceForm = ({ isOpen, onClose }: InvoiceFormProps) => {
     return calculateSubtotal() + calculateTPS() + calculateTVQ();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Facture créée:', {
-      clientName,
-      clientEmail,
-      invoiceNumber,
-      dueDate,
-      lineItems,
-      province,
-      subtotal: calculateSubtotal(),
-      tps: calculateTPS(),
-      tvq: calculateTVQ(),
-      total: calculateTotal()
-    });
-    // Ici on pourrait ajouter la logique pour sauvegarder la facture
-    onClose();
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Non authentifié');
+
+      // Find client by name or create new one
+      let clientId = null;
+      const { data: existingClients } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('nom', clientName)
+        .eq('user_id', user.id);
+
+      if (existingClients && existingClients.length > 0) {
+        clientId = existingClients[0].id;
+      }
+
+      const invoiceData = {
+        user_id: user.id,
+        client_id: clientId,
+        numero_facture: invoiceNumber,
+        montant: calculateTotal(),
+        date_facture: new Date().toISOString().split('T')[0],
+        date_echeance: dueDate,
+        statut: 'pending',
+        statut_label: 'En attente',
+        items: lineItems,
+        sous_total: calculateSubtotal(),
+        tps: calculateTPS(),
+        tvq: calculateTVQ(),
+        total: calculateTotal(),
+        province
+      };
+
+      const { error } = await supabase
+        .from('invoices')
+        .insert([invoiceData]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Facture créée",
+        description: "La facture a été créée avec succès.",
+      });
+
+      resetForm();
+      handleClose();
+    } catch (error) {
+      console.error('Erreur lors de la création de la facture:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer la facture.",
+        variant: "destructive",
+      });
+    }
   };
 
   const resetForm = () => {
