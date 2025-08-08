@@ -33,7 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 const formSchema = z.object({
   name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
   email: z.string().email('Adresse email invalide'),
-  role: z.enum(['Administrateur', 'Comptable', 'Observateur'], {
+  role: z.enum(['Administrateur', 'Comptable', 'Gestionnaire'], {
     required_error: 'Veuillez sélectionner un rôle',
   }),
 });
@@ -155,7 +155,7 @@ export const AddTeamMemberDialog = ({ children }: AddTeamMemberDialogProps) => {
                     <SelectContent>
                       <SelectItem value="Administrateur">Administrateur</SelectItem>
                       <SelectItem value="Comptable">Comptable</SelectItem>
-                      <SelectItem value="Observateur">Observateur</SelectItem>
+                      <SelectItem value="Gestionnaire">Gestionnaire</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
