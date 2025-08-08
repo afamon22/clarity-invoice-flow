@@ -74,12 +74,19 @@ const Index = () => {
               className="bg-primary hover:bg-primary/90"
               onClick={() => navigate('/auth')}
             >
-              Commencer maintenant
+              Accéder à la plateforme
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-            <Button size="lg" variant="outline">
-              En savoir plus
-            </Button>
+          </div>
+          <div className="mt-6 p-4 bg-card/50 rounded-lg border max-w-md mx-auto">
+            <div className="flex items-center space-x-2 mb-2">
+              <Shield className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Plateforme interne</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              L'accès à cette plateforme est strictement réservé aux membres autorisés de GroupeOBV. 
+              Connexion sur invitation uniquement.
+            </p>
           </div>
         </div>
 
