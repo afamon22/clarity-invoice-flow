@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const mailgunApiKey = Deno.env.get("MAILGUN_API_KEY");
+const mailgunDomain = Deno.env.get("MAILGUN_DOMAIN") || "sandboxXXX.mailgun.org"; // Utilisez votre domaine Mailgun
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,14 +43,29 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate invoice HTML
     const invoiceHtml = generateInvoiceHtml(invoiceData, clientData);
 
-    const emailResponse = await resend.emails.send({
-      from: "GroupeOBV <onboarding@resend.dev>",
-      to: ["amonanaka22@gmail.com"], // Temporaire: utilise votre email pour les tests
-      subject: `Facture ${invoiceData.numero_facture} - Client: ${clientData.nom}`,
-      html: invoiceHtml,
+    // Préparer les données pour Mailgun
+    const formData = new FormData();
+    formData.append("from", `GroupeOBV <noreply@${mailgunDomain}>`);
+    formData.append("to", clientData.email);
+    formData.append("subject", `Facture ${invoiceData.numero_facture} - Client: ${clientData.nom}`);
+    formData.append("html", invoiceHtml);
+
+    // Envoyer l'email via Mailgun
+    const emailResponse = await fetch(`https://api.mailgun.net/v3/${mailgunDomain}/messages`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${btoa(`api:${mailgunApiKey}`)}`,
+      },
+      body: formData,
     });
 
-    console.log("Invoice email sent successfully:", emailResponse);
+    const emailResult = await emailResponse.json();
+    
+    if (!emailResponse.ok) {
+      throw new Error(`Erreur Mailgun: ${emailResult.message || 'Erreur inconnue'}`);
+    }
+
+    console.log("Invoice email sent successfully via Mailgun:", emailResult);
 
     return new Response(JSON.stringify({ success: true, data: emailResponse }), {
       status: 200,
