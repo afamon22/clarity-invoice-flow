@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Plus, Filter, Search, Send, Eye, MoreHorizontal } from 'lucide-react';
+import { FileText, Plus, Filter, Search, Send, Eye, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Layout } from '@/components/Layout';
 import { InvoiceForm } from '@/components/InvoiceForm';
+import { EditInvoiceForm } from '@/components/EditInvoiceForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -34,6 +38,11 @@ const Invoices = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
   const { toast } = useToast();
 
   const fetchInvoices = async () => {
@@ -132,6 +141,51 @@ const Invoices = () => {
     }
   };
 
+  const handleViewInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleEditInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteInvoice = (invoice: Invoice) => {
+    setInvoiceToDelete(invoice);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteInvoice = async () => {
+    if (!invoiceToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoiceToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Succès",
+        description: "Facture supprimée avec succès.",
+      });
+
+      fetchInvoices();
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer la facture.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setInvoiceToDelete(null);
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -192,7 +246,11 @@ const Invoices = () => {
                     </div>
                     
                     <div className="flex items-center space-x-2 ml-4">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewInvoice(invoice)}
+                      >
                         <Eye className="w-4 h-4 mr-1" />
                         Voir
                       </Button>
@@ -204,9 +262,26 @@ const Invoices = () => {
                         <Send className="w-4 h-4 mr-1" />
                         {sendingInvoice === invoice.id ? 'Envoi...' : 'Envoyer'}
                       </Button>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => handleEditInvoice(invoice)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteInvoice(invoice)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </CardContent>
@@ -223,6 +298,114 @@ const Invoices = () => {
             fetchInvoices(); // Refresh invoices after creating one
           }} 
         />
+
+        {/* Dialog de modification */}
+        <EditInvoiceForm
+          isOpen={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setSelectedInvoice(null);
+            fetchInvoices();
+          }}
+          invoice={selectedInvoice}
+        />
+
+        {/* Dialog de visualisation */}
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Facture #{selectedInvoice?.numero_facture}</DialogTitle>
+            </DialogHeader>
+            {selectedInvoice && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Informations client</h3>
+                    <p><strong>Nom:</strong> {selectedInvoice.clients?.nom || 'Non spécifié'}</p>
+                    <p><strong>Email:</strong> {selectedInvoice.clients?.email || 'Non spécifié'}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Détails facture</h3>
+                    <p><strong>Date:</strong> {new Date(selectedInvoice.date_facture).toLocaleDateString('fr-FR')}</p>
+                    <p><strong>Échéance:</strong> {new Date(selectedInvoice.date_echeance).toLocaleDateString('fr-FR')}</p>
+                    <p><strong>Statut:</strong> 
+                      <Badge className={`ml-2 ${getStatusColor(selectedInvoice.statut)}`}>
+                        {selectedInvoice.statut_label}
+                      </Badge>
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-3">Services</h3>
+                  <div className="space-y-2">
+                    {selectedInvoice.items && selectedInvoice.items.length > 0 ? (
+                      selectedInvoice.items.map((item: any, index: number) => (
+                        <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                          <div>
+                            <p className="font-medium">{item.description}</p>
+                            <p className="text-sm text-gray-600">Quantité: {item.quantity}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">{(item.quantity * item.price).toFixed(2)} €</p>
+                            <p className="text-sm text-gray-600">{item.price.toFixed(2)} € / unité</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500">Aucun service spécifié</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <div className="flex justify-end">
+                    <div className="text-right space-y-2 min-w-[200px]">
+                      <div className="flex justify-between">
+                        <span>Sous-total:</span>
+                        <span>{selectedInvoice.sous_total.toFixed(2)} €</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>TPS:</span>
+                        <span>{selectedInvoice.tps.toFixed(2)} €</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>TVQ:</span>
+                        <span>{selectedInvoice.tvq.toFixed(2)} €</span>
+                      </div>
+                      <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                        <span>Total:</span>
+                        <span>{selectedInvoice.total.toFixed(2)} €</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de confirmation de suppression */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer la facture</AlertDialogTitle>
+              <AlertDialogDescription>
+                Êtes-vous sûr de vouloir supprimer la facture #{invoiceToDelete?.numero_facture} ? 
+                Cette action est irréversible.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmDeleteInvoice}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </Layout>
   );
 };
