@@ -46,7 +46,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Préparer les données pour Mailgun
     const formData = new FormData();
     formData.append("from", `GroupeOBV <noreply@${mailgunDomain}>`);
-    formData.append("to", "anakaf@yahoo.fr"); // Temporaire: votre email autorisé pour tests
+    formData.append("to", "directiontechnique@groupeobv.com"); // Email autorisé Mailgun
     formData.append("subject", `Facture ${invoiceData.numero_facture} - Client: ${clientData.nom}`);
     formData.append("html", invoiceHtml);
 
