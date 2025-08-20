@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Layout } from '@/components/Layout';
 import { AddDomainDialog } from '@/components/AddDomainDialog';
+import { EditDomainDialog } from '@/components/EditDomainDialog';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -101,6 +102,10 @@ const Domaines = () => {
 
   const handleDomainAdded = (newDomain: Domaine) => {
     setDomaines([...domaines, newDomain]);
+  };
+
+  const handleDomainUpdated = (updatedDomain: Domaine) => {
+    setDomaines(domaines.map(d => d.id === updatedDomain.id ? updatedDomain : d));
   };
 
   useEffect(() => {
@@ -215,10 +220,10 @@ const Domaines = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        <Button variant="outline" size="sm">
-                          <Edit className="w-4 h-4 mr-2" />
-                          Modifier
-                        </Button>
+                        <EditDomainDialog 
+                          domaine={domaine} 
+                          onUpdate={handleDomainUpdated} 
+                        />
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="outline" size="sm">
