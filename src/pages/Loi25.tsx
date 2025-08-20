@@ -16,6 +16,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface Loi25Entry {
   id: string;
@@ -103,8 +114,6 @@ const Loi25 = () => {
   };
 
   const handleDeleteEntry = async (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette entrée ?')) return;
-
     try {
       const { error } = await supabase
         .from('loi25_entries')
@@ -247,14 +256,32 @@ const Loi25 = () => {
                             entry={entree} 
                             onUpdate={fetchEntries} 
                           />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteEntry(entree.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Supprimer l'entrée Loi 25</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Êtes-vous sûr de vouloir supprimer l'entrée pour "{entree.nom_client}" ? 
+                                  Cette action est irréversible.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteEntry(entree.id)}>
+                                  Supprimer
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
