@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Layout } from '@/components/Layout';
 import { AddLoi25Dialog } from '@/components/AddLoi25Dialog';
+import { EditLoi25Dialog } from '@/components/EditLoi25Dialog';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -242,10 +243,10 @@ const Loi25 = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
-                          <Button variant="outline" size="sm">
-                            <Settings className="w-4 h-4 mr-2" />
-                            Gérer
-                          </Button>
+                          <EditLoi25Dialog 
+                            entry={entree} 
+                            onUpdate={fetchEntries} 
+                          />
                           <Button
                             variant="outline"
                             size="sm"
