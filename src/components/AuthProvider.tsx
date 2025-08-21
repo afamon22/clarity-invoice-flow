@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const determineUserRole = async (user: User) => {
     // Vérifier si c'est l'admin avec l'email spécifique
-    if (user.email === 'admin@groupeobv.com') {
+    if (user.email === 'anakaf@yahoo.fr') {
       setUserRole('admin');
     } else {
       setUserRole('user');
@@ -56,14 +56,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Connexion admin spéciale
       if (email === 'obv2024G' && password === 'Synergie2024') {
         const { error } = await supabase.auth.signInWithPassword({
-          email: 'admin@groupeobv.com',
+          email: 'anakaf@yahoo.fr',
           password: 'Synergie2024Admin'
         });
         
         if (error) {
           // Si l'admin n'existe pas encore, le créer
           const { error: signUpError } = await supabase.auth.signUp({
-            email: 'admin@groupeobv.com',
+            email: 'anakaf@yahoo.fr',
             password: 'Synergie2024Admin',
             options: {
               emailRedirectTo: `${window.location.origin}/`,
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           // Réessayer la connexion
           const { error: retryError } = await supabase.auth.signInWithPassword({
-            email: 'admin@groupeobv.com',
+            email: 'anakaf@yahoo.fr',
             password: 'Synergie2024Admin'
           });
           
