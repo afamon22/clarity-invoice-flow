@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AIAssistantDialogProps {
   children: React.ReactNode;
@@ -36,22 +37,43 @@ export const AIAssistantDialog = ({ children }: AIAssistantDialogProps) => {
     setConversation(newConversation);
 
     try {
-      // TODO: Implement AI API call here
-      // For now, simulate AI response
-      setTimeout(() => {
-        const aiResponse = {
-          role: 'assistant' as const,
-          content: `Je vous aide avec "${userMessage}". Cette fonctionnalité sera bientôt disponible avec l'intégration complète de l'IA.`
-        };
-        setConversation([...newConversation, aiResponse]);
-        setIsLoading(false);
-      }, 1000);
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Call AI assistant edge function
+      const { data, error } = await supabase.functions.invoke('ai-assistant-reminders', {
+        body: { 
+          message: userMessage,
+          userId: user?.id 
+        }
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+
+      const aiResponse = {
+        role: 'assistant' as const,
+        content: data.response || data.fallbackResponse || "Je rencontre une difficulté technique."
+      };
+      
+      setConversation([...newConversation, aiResponse]);
     } catch (error) {
+      console.error('AI Assistant error:', error);
       toast({
         title: "Erreur",
         description: "Impossible de contacter l'assistant IA",
         variant: "destructive"
       });
+      
+      // Add error message to conversation
+      const errorResponse = {
+        role: 'assistant' as const,
+        content: "Je rencontre une difficulté technique. Veuillez réessayer dans quelques instants."
+      };
+      setConversation([...newConversation, errorResponse]);
+    } finally {
       setIsLoading(false);
     }
   };
