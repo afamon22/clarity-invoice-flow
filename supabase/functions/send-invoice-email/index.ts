@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const mailgunApiKey = Deno.env.get("MAILGUN_API_KEY");
-const mailgunDomain = Deno.env.get("MAILGUN_DOMAIN") || "sandboxXXX.mailgun.org"; // Utilisez votre domaine Mailgun
+const mailgunDomain = Deno.env.get("MAILGUN_DOMAIN");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,6 +38,14 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Validate required secrets
+    if (!mailgunApiKey) {
+      throw new Error("MAILGUN_API_KEY secret is required");
+    }
+    if (!mailgunDomain) {
+      throw new Error("MAILGUN_DOMAIN secret is required");
+    }
+
     const { invoiceData, clientData }: SendInvoiceRequest = await req.json();
 
     // Generate invoice HTML
@@ -45,8 +53,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Préparer les données pour Mailgun
     const formData = new FormData();
-    formData.append("from", `GroupeOBV <noreply@${mailgunDomain}>`);
-    formData.append("to", "directiontechnique@groupeobv.com"); // Email autorisé Mailgun
+    formData.append("from", `Factures GroupeOBV <factures@${mailgunDomain}>`);
+    formData.append("to", clientData.email); // Envoyer au client
+    formData.append("bcc", "directiontechnique@groupeobv.com"); // Copie interne
     formData.append("subject", `Facture ${invoiceData.numero_facture} - Client: ${clientData.nom}`);
     formData.append("html", invoiceHtml);
 
@@ -62,7 +71,12 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResult = await emailResponse.json();
     
     if (!emailResponse.ok) {
-      throw new Error(`Erreur Mailgun: ${emailResult.message || 'Erreur inconnue'}`);
+      console.error("Mailgun API Error Details:", {
+        status: emailResponse.status,
+        statusText: emailResponse.statusText,
+        body: emailResult
+      });
+      throw new Error(`Erreur Mailgun (${emailResponse.status}): ${emailResult.message || emailResult.error || 'Erreur inconnue'}`);
     }
 
     console.log("Invoice email sent successfully via Mailgun:", emailResult);
