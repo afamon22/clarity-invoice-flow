@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const mailgunApiKey = Deno.env.get("MAILGUN_API_KEY");
 const mailgunDomain = Deno.env.get("MAILGUN_DOMAIN");
-
+const mailgunBaseUrl = Deno.env.get("MAILGUN_BASE_URL") || "https://api.mailgun.net";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -60,7 +60,7 @@ const handler = async (req: Request): Promise<Response> => {
     formData.append("html", invoiceHtml);
 
     // Envoyer l'email via Mailgun
-    const emailResponse = await fetch(`https://api.mailgun.net/v3/${mailgunDomain}/messages`, {
+    const emailResponse = await fetch(`${mailgunBaseUrl}/v3/${mailgunDomain}/messages`, {
       method: "POST",
       headers: {
         "Authorization": `Basic ${btoa(`api:${mailgunApiKey}`)}`,
@@ -81,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Invoice email sent successfully via Mailgun:", emailResult);
 
-    return new Response(JSON.stringify({ success: true, data: emailResponse }), {
+    return new Response(JSON.stringify({ success: true, id: emailResult.id, message: emailResult.message }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
