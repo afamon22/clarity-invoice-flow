@@ -103,7 +103,7 @@ const Invoices = () => {
     setSendingInvoice(invoice.id);
     
     try {
-      const { error } = await supabase.functions.invoke('send-invoice-email', {
+      const { data, error } = await supabase.functions.invoke('send-invoice-email', {
         body: {
           invoiceData: {
             numero_facture: invoice.numero_facture,
@@ -123,17 +123,21 @@ const Invoices = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) throw new Error((error as any)?.message || 'Erreur inconnue lors de l\'appel de la fonction.');
+      if (!data || !(data as any).success) {
+        throw new Error(((data as any)?.error as string) || 'Échec de l\'envoi de l\'email.');
+      }
 
+      const meta = data as any;
       toast({
         title: "Succès",
-        description: `Facture ${invoice.numero_facture} envoyée par email.`,
+        description: `Facture ${invoice.numero_facture} envoyée. ID: ${meta.id}${meta.region_base_url ? ` (via ${new URL(meta.region_base_url).host})` : ''}`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors de l\'envoi de la facture:', error);
       toast({
         title: "Erreur",
-        description: "Impossible d'envoyer la facture par email.",
+        description: `Impossible d'envoyer la facture par email. ${error?.message ? 'Détail: ' + error.message : ''}`,
         variant: "destructive",
       });
     } finally {

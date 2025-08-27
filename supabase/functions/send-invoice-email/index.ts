@@ -59,35 +59,52 @@ const handler = async (req: Request): Promise<Response> => {
     formData.append("subject", `Facture ${invoiceData.numero_facture} - Client: ${clientData.nom}`);
     formData.append("html", invoiceHtml);
 
-    // Envoyer l'email via Mailgun
-    const emailResponse = await fetch(`${mailgunBaseUrl}/v3/${mailgunDomain}/messages`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Basic ${btoa(`api:${mailgunApiKey}`)}`,
-      },
-      body: formData,
-    });
+    // Tenter l'envoi via Mailgun en testant US puis EU si nécessaire
+    const candidateBaseUrls = Array.from(
+      new Set([
+        mailgunBaseUrl,
+        mailgunBaseUrl.includes('.eu.') ? 'https://api.mailgun.net' : 'https://api.eu.mailgun.net',
+      ])
+    );
 
-    const emailResult = await emailResponse.json();
-    
-    if (!emailResponse.ok) {
-      console.error("Mailgun API Error Details:", {
-        status: emailResponse.status,
-        statusText: emailResponse.statusText,
-        body: emailResult
-      });
-      throw new Error(`Erreur Mailgun (${emailResponse.status}): ${emailResult.message || emailResult.error || 'Erreur inconnue'}`);
+    let lastError: any = null;
+    let lastBody: any = null;
+
+    for (const base of candidateBaseUrls) {
+      try {
+        console.log(`Trying Mailgun base URL: ${base}`);
+        const res = await fetch(`${base}/v3/${mailgunDomain}/messages`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Basic ${btoa(`api:${mailgunApiKey}`)}`,
+          },
+          body: formData,
+        });
+
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) {
+          console.log("Invoice email sent successfully via Mailgun:", body);
+          return new Response(
+            JSON.stringify({ success: true, id: body.id, message: body.message, region_base_url: base }),
+            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+
+        console.error("Mailgun API error", { base, status: res.status, statusText: res.statusText, body });
+        lastError = new Error(
+          `Erreur Mailgun (${res.status}): ${body?.message || body?.error || res.statusText || 'Erreur inconnue'} (base: ${base})`
+        );
+        lastBody = body;
+      } catch (e: any) {
+        console.error("Network error when calling Mailgun", { base, error: e?.message });
+        lastError = e;
+      }
     }
 
-    console.log("Invoice email sent successfully via Mailgun:", emailResult);
-
-    return new Response(JSON.stringify({ success: true, id: emailResult.id, message: emailResult.message }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
+    // Si toutes les tentatives échouent
+    throw new Error(
+      lastError?.message || `Impossible d'envoyer l'email via Mailgun. Dernière réponse: ${JSON.stringify(lastBody)}`
+    );
   } catch (error: any) {
     console.error("Error in send-invoice-email function:", error);
     return new Response(
