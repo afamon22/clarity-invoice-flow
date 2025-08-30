@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Clock, CheckCircle, Send } from 'lucide-react';
+import { AlertCircle, Clock, CheckCircle, Send, Calendar, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,19 +23,31 @@ interface Reminder {
   };
 }
 
+interface ExpirationReminder {
+  id: string;
+  type: 'domaine' | 'loi25';
+  nom: string;
+  client: string;
+  date_expiration: string;
+  jours_restants: number;
+}
+
 const Reminders = () => {
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [expirationReminders, setExpirationReminders] = useState<ExpirationReminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     pending: 0,
     escalated: 0,
-    resolved: 0
+    resolved: 0,
+    expirations: 0
   });
   const { toast } = useToast();
 
   const fetchReminders = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch invoice reminders
+      const { data: reminderData, error: reminderError } = await supabase
         .from('reminders')
         .select(`
           *,
@@ -49,15 +61,72 @@ const Reminders = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setReminders(data || []);
+      if (reminderError) throw reminderError;
+      setReminders(reminderData || []);
+
+      // Fetch expiring domains (< 30 days)
+      const today = new Date();
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+      const { data: domainesData, error: domainesError } = await supabase
+        .from('domaines')
+        .select('*')
+        .lte('date_expiration', thirtyDaysFromNow.toISOString().split('T')[0])
+        .gte('date_expiration', today.toISOString().split('T')[0]);
+
+      // Fetch expiring loi25 entries (< 30 days)
+      const { data: loi25Data, error: loi25Error } = await supabase
+        .from('loi25_entries')
+        .select('*')
+        .lte('date_expiration', thirtyDaysFromNow.toISOString().split('T')[0])
+        .gte('date_expiration', today.toISOString().split('T')[0]);
+
+      if (domainesError) console.error('Erreur domaines:', domainesError);
+      if (loi25Error) console.error('Erreur loi25:', loi25Error);
+
+      // Process expiration reminders
+      const expirations: ExpirationReminder[] = [];
+      
+      // Add domain expirations
+      (domainesData || []).forEach(domaine => {
+        const expDate = new Date(domaine.date_expiration);
+        const daysRemaining = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        expirations.push({
+          id: domaine.id,
+          type: 'domaine',
+          nom: domaine.nom_domaine,
+          client: domaine.nom_client,
+          date_expiration: domaine.date_expiration,
+          jours_restants: daysRemaining
+        });
+      });
+
+      // Add loi25 expirations
+      (loi25Data || []).forEach(loi25 => {
+        const expDate = new Date(loi25.date_expiration);
+        const daysRemaining = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        expirations.push({
+          id: loi25.id,
+          type: 'loi25',
+          nom: loi25.domaine,
+          client: loi25.nom_client,
+          date_expiration: loi25.date_expiration,
+          jours_restants: daysRemaining
+        });
+      });
+
+      setExpirationReminders(expirations);
       
       // Calculate stats
-      const pending = data?.filter(r => r.statut === 'pending').length || 0;
-      const escalated = data?.filter(r => r.statut === 'escalated').length || 0;
-      const resolved = data?.filter(r => r.statut === 'resolved').length || 0;
+      const pending = reminderData?.filter(r => r.statut === 'pending').length || 0;
+      const escalated = reminderData?.filter(r => r.statut === 'escalated').length || 0;
+      const resolved = reminderData?.filter(r => r.statut === 'resolved').length || 0;
+      const expirationsCount = expirations.length;
       
-      setStats({ pending, escalated, resolved });
+      setStats({ pending, escalated, resolved, expirations: expirationsCount });
     } catch (error) {
       console.error('Erreur lors du chargement des rappels:', error);
       toast({
@@ -133,7 +202,7 @@ const Reminders = () => {
           </AIAssistantDialog>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
+        <div className="grid gap-6 md:grid-cols-4 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -163,23 +232,85 @@ const Reminders = () => {
               <div className="flex items-center">
                 <CheckCircle className="h-8 w-8 text-green-600" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-muted-foreground">Rappels résolus ce mois</p>
+                  <p className="text-sm font-medium text-muted-foreground">Rappels résolus</p>
                   <p className="text-2xl font-bold text-foreground">{stats.resolved}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Calendar className="h-8 w-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Expirations {"<"} 30j</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.expirations}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Expiration Reminders */}
         <Card>
           <CardHeader>
-            <CardTitle>Rappels actifs</CardTitle>
+            <CardTitle>Produits expirant dans moins de 30 jours</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-8">Chargement...</div>
+            ) : expirationReminders.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">Aucun produit n'expire dans les 30 prochains jours.</div>
+            ) : (
+              <div className="space-y-4">
+                {expirationReminders.map((expiration) => (
+                  <div key={`${expiration.type}-${expiration.id}`} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-shrink-0">
+                        {expiration.type === 'domaine' ? <Globe className="w-4 h-4 text-blue-600" /> : <Calendar className="w-4 h-4 text-purple-600" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-medium text-foreground">{expiration.nom}</h4>
+                          <Badge variant="outline" className={
+                            expiration.jours_restants <= 7 
+                              ? "bg-red-500/10 text-red-700 border-red-200"
+                              : expiration.jours_restants <= 15
+                              ? "bg-orange-500/10 text-orange-700 border-orange-200"
+                              : "bg-blue-500/10 text-blue-700 border-blue-200"
+                          }>
+                            {expiration.jours_restants <= 0 
+                              ? 'Expiré' 
+                              : `${expiration.jours_restants}j restants`}
+                          </Badge>
+                          <Badge variant="secondary">
+                            {expiration.type === 'domaine' ? 'Domaine' : 'Loi 25'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{expiration.client}</p>
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                          <span>Expire le: {new Date(expiration.date_expiration).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Invoice Reminders */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Rappels de factures</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
               <div className="text-center py-8">Chargement...</div>
             ) : reminders.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">Aucun rappel actif.</div>
+              <div className="text-center py-8 text-muted-foreground">Aucun rappel de facture actif.</div>
             ) : (
               <div className="space-y-4">
                 {reminders.map((reminder) => (
