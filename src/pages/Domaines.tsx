@@ -55,6 +55,18 @@ const Domaines = () => {
     return 'Actif';
   };
 
+  const getRappelStatus = (dateRappel: string | null) => {
+    if (!dateRappel) return null;
+    
+    const today = new Date();
+    const rappel = new Date(dateRappel);
+    const diffDays = Math.ceil((rappel.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 0) return 'Rappel aujourd\'hui';
+    if (diffDays <= 30) return `Rappel dans ${diffDays}j`;
+    return null;
+  };
+
   const fetchDomaines = async () => {
     try {
       const { data, error } = await supabase
@@ -187,6 +199,7 @@ const Domaines = () => {
                 <TableHead className="font-semibold">Client</TableHead>
                 <TableHead className="font-semibold">Statut</TableHead>
                 <TableHead className="font-semibold">Expiration</TableHead>
+                <TableHead className="font-semibold">Rappel</TableHead>
                 <TableHead className="font-semibold">Hébergement</TableHead>
                 <TableHead className="font-semibold text-right">Actions</TableHead>
               </TableRow>
@@ -194,6 +207,7 @@ const Domaines = () => {
             <TableBody>
               {filteredDomaines.map((domaine) => {
                 const statut = getStatut(domaine.date_expiration);
+                const rappelStatus = getRappelStatus(domaine.date_rappel);
                 return (
                   <TableRow key={domaine.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">
@@ -212,6 +226,15 @@ const Domaines = () => {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(domaine.date_expiration).toLocaleDateString('fr-FR')}
+                    </TableCell>
+                    <TableCell>
+                      {rappelStatus ? (
+                        <Badge variant="outline" className="bg-orange-500/10 text-orange-700 border-orange-200">
+                          {rappelStatus}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={domaine.hebergement ? "default" : "secondary"}>
