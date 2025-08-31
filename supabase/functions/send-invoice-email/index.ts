@@ -1,8 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-const mailgunApiKey = Deno.env.get("MAILGUN_API_KEY");
-const mailgunDomain = Deno.env.get("MAILGUN_DOMAIN");
-const mailgunBaseUrl = Deno.env.get("MAILGUN_BASE_URL") || "https://api.mailgun.net";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -24,180 +21,391 @@ interface SendInvoiceRequest {
     tps: number;
     tvq: number;
     total: number;
+    province: string;
+    user_id: string;
   };
   clientData: {
     nom: string;
     email: string;
+    telephone?: string;
+    adresse?: string;
   };
 }
 
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate required secrets
-    if (!mailgunApiKey) {
-      throw new Error("MAILGUN_API_KEY secret is required");
-    }
-    if (!mailgunDomain) {
-      throw new Error("MAILGUN_DOMAIN secret is required");
+    // Validate environment variables
+    const mailgunApiKey = Deno.env.get('MAILGUN_API_KEY');
+    const mailgunDomain = Deno.env.get('MAILGUN_DOMAIN');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!mailgunApiKey || !mailgunDomain || !supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing required environment variables:', {
+        hasApiKey: !!mailgunApiKey,
+        hasDomain: !!mailgunDomain,
+        hasSupabaseUrl: !!supabaseUrl,
+        hasSupabaseKey: !!supabaseServiceKey
+      });
+      return new Response(
+        JSON.stringify({ 
+          error: 'Configuration manquante', 
+          details: 'Variables d\'environnement manquantes'
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        }
+      );
     }
 
     const { invoiceData, clientData }: SendInvoiceRequest = await req.json();
+    
+    console.log('Processing invoice email:', {
+      invoiceNumber: invoiceData.numero_facture,
+      clientEmail: clientData.email,
+      total: invoiceData.total
+    });
 
-    // Generate invoice HTML
-    const invoiceHtml = generateInvoiceHtml(invoiceData, clientData);
+    // Fetch branding settings
+    const brandingSettings = await fetchBrandingSettings(supabaseUrl, supabaseServiceKey, invoiceData.user_id);
 
-    // Préparer les données pour Mailgun
+    // Generate the HTML content
+    const htmlContent = generateInvoiceHtml(invoiceData, clientData, brandingSettings);
+
+    // Prepare form data for Mailgun
     const formData = new FormData();
-    formData.append("from", `Factures GroupeOBV <factures@${mailgunDomain}>`);
-    formData.append("to", clientData.email); // Envoyer au client
-    formData.append("bcc", "directiontechnique@groupeobv.com"); // Copie interne
-    formData.append("subject", `Facture ${invoiceData.numero_facture} - Client: ${clientData.nom}`);
-    formData.append("html", invoiceHtml);
+    formData.append('from', `Factures ${brandingSettings?.company_name || 'Votre Entreprise'} <contact@${mailgunDomain}>`);
+    formData.append('to', clientData.email);
+    formData.append('subject', `Facture ${invoiceData.numero_facture} - ${brandingSettings?.company_name || 'Votre Entreprise'}`);
+    formData.append('html', htmlContent);
 
-    // Tenter l'envoi via Mailgun en testant US puis EU si nécessaire
-    const candidateBaseUrls = Array.from(
-      new Set([
-        mailgunBaseUrl,
-        mailgunBaseUrl.includes('.eu.') ? 'https://api.mailgun.net' : 'https://api.eu.mailgun.net',
-      ])
-    );
+    // Try different Mailgun regions
+    const mailgunUrls = [
+      'https://api.mailgun.net',
+      'https://api.eu.mailgun.net'
+    ];
 
-    let lastError: any = null;
-    let lastBody: any = null;
-
-    for (const base of candidateBaseUrls) {
+    let lastError;
+    for (const baseUrl of mailgunUrls) {
       try {
-        console.log(`Trying Mailgun base URL: ${base}`);
-        const res = await fetch(`${base}/v3/${mailgunDomain}/messages`, {
-          method: "POST",
+        console.log(`Attempting to send via ${baseUrl}`);
+        
+        const response = await fetch(`${baseUrl}/v3/${mailgunDomain}/messages`, {
+          method: 'POST',
           headers: {
-            "Authorization": `Basic ${btoa(`api:${mailgunApiKey}`)}`,
+            'Authorization': `Basic ${btoa(`api:${mailgunApiKey}`)}`,
           },
-          body: formData,
+          body: formData
         });
 
-        const body = await res.json().catch(() => ({}));
-        if (res.ok) {
-          console.log("Invoice email sent successfully via Mailgun:", body);
-          return new Response(
-            JSON.stringify({ success: true, id: body.id, message: body.message, region_base_url: base }),
-            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-          );
-        }
+        const result = await response.json();
 
-        console.error("Mailgun API error", { base, status: res.status, statusText: res.statusText, body });
-        lastError = new Error(
-          `Erreur Mailgun (${res.status}): ${body?.message || body?.error || res.statusText || 'Erreur inconnue'} (base: ${base})`
-        );
-        lastBody = body;
-      } catch (e: any) {
-        console.error("Network error when calling Mailgun", { base, error: e?.message });
-        lastError = e;
+        if (response.ok) {
+          console.log('Email sent successfully:', result);
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: 'Email envoyé avec succès',
+              id: result.id,
+              region: baseUrl.includes('eu') ? 'EU' : 'US'
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+            }
+          );
+        } else {
+          console.error(`Failed with ${baseUrl}:`, result);
+          lastError = result;
+        }
+      } catch (error) {
+        console.error(`Error with ${baseUrl}:`, error);
+        lastError = error;
       }
     }
 
-    // Si toutes les tentatives échouent
-    throw new Error(
-      lastError?.message || `Impossible d'envoyer l'email via Mailgun. Dernière réponse: ${JSON.stringify(lastBody)}`
-    );
+    throw new Error(`Failed to send email: ${JSON.stringify(lastError)}`);
+
   } catch (error: any) {
-    console.error("Error in send-invoice-email function:", error);
+    console.error('Error in send-invoice-email function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: 'Erreur lors de l\'envoi de l\'email', 
+        details: error.message 
+      }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       }
     );
   }
 };
 
-function generateInvoiceHtml(invoiceData: any, clientData: any): string {
+async function fetchBrandingSettings(supabaseUrl: string, supabaseServiceKey: string, userId: string) {
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/company_settings?user_id=eq.${userId}`, {
+      headers: {
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      console.log('No branding settings found, using defaults');
+      return null;
+    }
+
+    const data = await response.json();
+    return data[0] || null;
+  } catch (error) {
+    console.error('Error fetching branding settings:', error);
+    return null;
+  }
+}
+
+function generateInvoiceHtml(invoiceData: any, clientData: any, brandingSettings: any = null): string {
   const itemsHtml = invoiceData.items.map((item: any) => `
     <tr>
-      <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.description}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-      <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.price.toFixed(2)} €</td>
-      <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${(item.quantity * item.price).toFixed(2)} €</td>
+      <td>${item.description}</td>
+      <td style="text-align: center;">${item.quantity}</td>
+      <td style="text-align: right;">${item.price.toFixed(2)} €</td>
+      <td style="text-align: right;">${(item.quantity * item.price).toFixed(2)} €</td>
     </tr>
   `).join('');
 
+  const companyName = brandingSettings?.company_name || 'Votre Entreprise';
+  const logoUrl = brandingSettings?.logo_url;
+  const primaryColor = brandingSettings?.primary_color || '#3b82f6';
+  const companyAddress = brandingSettings?.address || '123 Rue de l\'Exemple\n75000 Paris, France';
+  const companyPhone = brandingSettings?.phone || '01 23 45 67 89';
+  const companyEmail = brandingSettings?.email || 'contact@votreentreprise.fr';
+  const companySiret = brandingSettings?.siret || '';
+  const companyWebsite = brandingSettings?.website || '';
+
   return `
     <!DOCTYPE html>
-    <html>
+    <html lang="fr">
     <head>
-      <meta charset="utf-8">
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Facture ${invoiceData.numero_facture}</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #f8f9fa;
+        }
+        .invoice-container {
+          background: white;
+          padding: 40px;
+          border-radius: 10px;
+          box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 40px;
+          border-bottom: 3px solid ${primaryColor};
+          padding-bottom: 20px;
+        }
+        .company-info {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          gap: 20px;
+        }
+        .company-logo {
+          max-width: 120px;
+          max-height: 80px;
+          object-fit: contain;
+        }
+        .company-details {
+          flex: 1;
+        }
+        .company-name {
+          font-size: 28px;
+          font-weight: bold;
+          color: ${primaryColor};
+          margin-bottom: 10px;
+        }
+        .invoice-details {
+          text-align: right;
+          flex: 1;
+        }
+        .invoice-title {
+          font-size: 32px;
+          font-weight: bold;
+          color: #333;
+          margin-bottom: 10px;
+        }
+        .invoice-number {
+          font-size: 18px;
+          color: #666;
+        }
+        .parties {
+          display: flex;
+          justify-content: space-between;
+          margin: 40px 0;
+        }
+        .party {
+          flex: 1;
+          margin-right: 20px;
+        }
+        .party h3 {
+          color: ${primaryColor};
+          border-bottom: 2px solid #e5e7eb;
+          padding-bottom: 10px;
+          margin-bottom: 15px;
+        }
+        .items-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 30px 0;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .items-table th {
+          background: ${primaryColor};
+          color: white;
+          padding: 15px;
+          text-align: left;
+          font-weight: 600;
+        }
+        .items-table td {
+          padding: 12px 15px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .items-table tbody tr:hover {
+          background-color: #f8f9fa;
+        }
+        .total-section {
+          margin-top: 30px;
+          text-align: right;
+        }
+        .total-line {
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 0;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .total-line.final {
+          font-size: 20px;
+          font-weight: bold;
+          color: ${primaryColor};
+          border-bottom: 3px solid ${primaryColor};
+          padding: 15px 0;
+        }
+        .footer {
+          margin-top: 40px;
+          text-align: center;
+          color: #666;
+          font-size: 14px;
+          border-top: 1px solid #e5e7eb;
+          padding-top: 20px;
+        }
+        .thank-you {
+          background: #f0f9ff;
+          padding: 20px;
+          border-radius: 8px;
+          border-left: 4px solid ${primaryColor};
+          margin: 30px 0;
+          font-style: italic;
+        }
+      </style>
     </head>
-    <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
-      <div style="max-width: 800px; margin: 0 auto; background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden;">
-        <!-- Header -->
-        <div style="background-color: #6366f1; color: white; padding: 30px;">
-          <h1 style="margin: 0; font-size: 28px;">GroupeOBV</h1>
-          <p style="margin: 5px 0 0 0; opacity: 0.9;">Gestion domaines</p>
+    <body>
+      <div class="invoice-container">
+        <div class="header">
+          <div class="company-info">
+            ${logoUrl ? `<img src="${logoUrl}" alt="${companyName}" class="company-logo" />` : ''}
+            <div class="company-details">
+              <div class="company-name">${companyName}</div>
+              <div style="white-space: pre-line;">${companyAddress}</div>
+              ${companyPhone ? `<div>Tél: ${companyPhone}</div>` : ''}
+              ${companyEmail ? `<div>Email: ${companyEmail}</div>` : ''}
+              ${companyWebsite ? `<div>Web: ${companyWebsite}</div>` : ''}
+              ${companySiret ? `<div>SIRET: ${companySiret}</div>` : ''}
+            </div>
+          </div>
+          <div class="invoice-details">
+            <div class="invoice-title">FACTURE</div>
+            <div class="invoice-number">#${invoiceData.numero_facture}</div>
+            <div style="margin-top: 15px;">
+              <div><strong>Date:</strong> ${new Date(invoiceData.date_facture).toLocaleDateString('fr-FR')}</div>
+              <div><strong>Échéance:</strong> ${new Date(invoiceData.date_echeance).toLocaleDateString('fr-FR')}</div>
+            </div>
+          </div>
         </div>
-        
-        <!-- Invoice Info -->
-        <div style="padding: 30px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
-            <div>
-              <h2 style="color: #374151; margin: 0 0 10px 0;">Facture</h2>
-              <p style="margin: 0; color: #6b7280;"><strong>Numéro:</strong> ${invoiceData.numero_facture}</p>
-              <p style="margin: 5px 0; color: #6b7280;"><strong>Date:</strong> ${new Date(invoiceData.date_facture).toLocaleDateString('fr-FR')}</p>
-              <p style="margin: 5px 0; color: #6b7280;"><strong>Échéance:</strong> ${new Date(invoiceData.date_echeance).toLocaleDateString('fr-FR')}</p>
-            </div>
-            <div style="text-align: right;">
-              <h3 style="color: #374151; margin: 0;">Facturé à:</h3>
-              <p style="margin: 5px 0; color: #6b7280;"><strong>${clientData.nom}</strong></p>
-              <p style="margin: 5px 0; color: #6b7280;">${clientData.email}</p>
+
+        <div class="parties">
+          <div class="party">
+            <h3>Facturé à:</h3>
+            <div><strong>${clientData.nom}</strong></div>
+            <div>${clientData.email}</div>
+            ${clientData.telephone ? `<div>${clientData.telephone}</div>` : ''}
+            ${clientData.adresse ? `<div>${clientData.adresse}</div>` : ''}
+          </div>
+          <div class="party">
+            <h3>Informations de paiement:</h3>
+            <div>Veuillez effectuer le paiement avant la date d'échéance.</div>
+            <div style="margin-top: 10px;">
+              <strong>Montant total: ${invoiceData.total} €</strong>
             </div>
           </div>
+        </div>
 
-          <!-- Items Table -->
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-            <thead>
-              <tr style="background-color: #f9fafb;">
-                <th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #e5e7eb; color: #374151;">Description</th>
-                <th style="padding: 12px 8px; text-align: center; border-bottom: 2px solid #e5e7eb; color: #374151;">Qté</th>
-                <th style="padding: 12px 8px; text-align: right; border-bottom: 2px solid #e5e7eb; color: #374151;">Prix unitaire</th>
-                <th style="padding: 12px 8px; text-align: right; border-bottom: 2px solid #e5e7eb; color: #374151;">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHtml}
-            </tbody>
-          </table>
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th style="text-align: center;">Quantité</th>
+              <th style="text-align: right;">Prix unitaire</th>
+              <th style="text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
 
-          <!-- Totals -->
-          <div style="margin-left: auto; width: 300px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-              <span style="color: #6b7280;">Sous-total:</span>
-              <span style="color: #374151; font-weight: 500;">${invoiceData.sous_total.toFixed(2)} €</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-              <span style="color: #6b7280;">TPS (5%):</span>
-              <span style="color: #374151; font-weight: 500;">${invoiceData.tps.toFixed(2)} €</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-              <span style="color: #6b7280;">TVQ (9.975%):</span>
-              <span style="color: #374151; font-weight: 500;">${invoiceData.tvq.toFixed(2)} €</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-              <span style="color: #374151; font-weight: 600; font-size: 18px;">Total:</span>
-              <span style="color: #6366f1; font-weight: 700; font-size: 20px;">${invoiceData.total.toFixed(2)} €</span>
-            </div>
+        <div class="total-section">
+          <div class="total-line">
+            <span><strong>Sous-total:</strong></span>
+            <span>${invoiceData.sous_total} €</span>
           </div>
-
-          <!-- Footer -->
-          <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280;">
-            <p style="margin: 0;">Merci pour votre confiance !</p>
-            <p style="margin: 5px 0 0 0; font-size: 14px;">GroupeOBV - Gestion domaines</p>
+          <div class="total-line">
+            <span><strong>TPS (${invoiceData.province === 'QC' ? '5%' : 'Variable'}):</strong></span>
+            <span>${invoiceData.tps} €</span>
           </div>
+          <div class="total-line">
+            <span><strong>TVQ (${invoiceData.province === 'QC' ? '9.975%' : 'Variable'}):</strong></span>
+            <span>${invoiceData.tvq} €</span>
+          </div>
+          <div class="total-line final">
+            <span>TOTAL:</span>
+            <span>${invoiceData.total} €</span>
+          </div>
+        </div>
+
+        <div class="thank-you">
+          <p><strong>Merci pour votre confiance!</strong></p>
+          <p>Pour toute question concernant cette facture, n'hésitez pas à nous contacter.</p>
+        </div>
+
+        <div class="footer">
+          <p>Cette facture a été générée automatiquement par notre système de facturation.</p>
+          <p>${companyName} - Tous droits réservés © ${new Date().getFullYear()}</p>
         </div>
       </div>
     </body>
