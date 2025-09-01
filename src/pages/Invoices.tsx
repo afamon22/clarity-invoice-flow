@@ -91,10 +91,11 @@ const Invoices = () => {
   };
 
   const handleSendInvoice = async (invoice: Invoice) => {
-    if (!invoice.clients?.nom) {
+    // Validation de base
+    if (!invoice.clients?.nom || !invoice.clients?.email) {
       toast({
-        title: "Erreur",
-        description: "Impossible d'envoyer la facture : client non trouvé.",
+        title: "Erreur de validation",
+        description: "Client ou email manquant pour cette facture.",
         variant: "destructive",
       });
       return;
@@ -103,41 +104,56 @@ const Invoices = () => {
     setSendingInvoice(invoice.id);
     
     try {
-      const { data, error } = await supabase.functions.invoke('send-invoice-email', {
-        body: {
-          invoiceData: {
-            numero_facture: invoice.numero_facture,
-            montant: invoice.montant,
-            date_facture: invoice.date_facture,
-            date_echeance: invoice.date_echeance,
-            items: invoice.items || [],
-            sous_total: invoice.sous_total,
-            tps: invoice.tps,
-            tvq: invoice.tvq,
-            total: invoice.total,
-          },
-          clientData: {
-            nom: invoice.clients.nom,
-            email: invoice.clients.email || 'client@email.com',
-          }
+      console.log('Début envoi facture:', invoice.numero_facture);
+      
+      // Préparation des données simplifiée
+      const invoicePayload = {
+        invoiceData: {
+          numero_facture: invoice.numero_facture,
+          montant: invoice.montant,
+          date_facture: invoice.date_facture,
+          date_echeance: invoice.date_echeance,
+          items: invoice.items || [],
+          sous_total: invoice.sous_total,
+          tps: invoice.tps,
+          tvq: invoice.tvq,
+          total: invoice.total,
+          province: 'QC', // Par défaut
+          user_id: (await supabase.auth.getUser()).data.user?.id
+        },
+        clientData: {
+          nom: invoice.clients.nom,
+          email: invoice.clients.email
         }
+      };
+
+      console.log('Payload préparé:', invoicePayload);
+
+      // Appel de la fonction
+      const { data, error } = await supabase.functions.invoke('send-invoice-email', {
+        body: invoicePayload
       });
 
-      if (error) throw new Error((error as any)?.message || 'Erreur inconnue lors de l\'appel de la fonction.');
-      if (!data || !(data as any).success) {
-        throw new Error(((data as any)?.error as string) || 'Échec de l\'envoi de l\'email.');
+      console.log('Réponse fonction:', { data, error });
+
+      if (error) {
+        throw new Error(`Erreur Supabase: ${error.message}`);
       }
 
-      const meta = data as any;
+      if (!data?.success) {
+        throw new Error(data?.error || 'Échec de l\'envoi sans détails');
+      }
+
       toast({
-        title: "Succès",
-        description: `Facture ${invoice.numero_facture} envoyée. ID: ${meta.id}${meta.region_base_url ? ` (via ${new URL(meta.region_base_url).host})` : ''}`,
+        title: "✅ Facture envoyée",
+        description: `Facture ${invoice.numero_facture} envoyée avec succès à ${invoice.clients.email}`,
       });
+
     } catch (error: any) {
-      console.error('Erreur lors de l\'envoi de la facture:', error);
+      console.error('❌ Erreur envoi facture:', error);
       toast({
-        title: "Erreur",
-        description: `Impossible d'envoyer la facture par email. ${error?.message ? 'Détail: ' + error.message : ''}`,
+        title: "❌ Erreur d'envoi",
+        description: error.message || 'Erreur inconnue lors de l\'envoi',
         variant: "destructive",
       });
     } finally {
