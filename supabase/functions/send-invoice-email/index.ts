@@ -4,6 +4,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 interface SendInvoiceRequest {
@@ -78,59 +79,85 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate the HTML content
     const htmlContent = generateInvoiceHtml(invoiceData, clientData, brandingSettings);
 
-    // Prepare form data for Mailgun
-    const formData = new FormData();
-    formData.append('from', `Factures ${brandingSettings?.company_name || 'Votre Entreprise'} <contact@${mailgunDomain}>`);
-    formData.append('to', clientData.email);
-    formData.append('subject', `Facture ${invoiceData.numero_facture} - ${brandingSettings?.company_name || 'Votre Entreprise'}`);
-    formData.append('html', htmlContent);
+// Prepare form data for Mailgun
+const formData = new FormData();
+const fromHeader = Deno.env.get('MAILGUN_FROM') || `Factures ${brandingSettings?.company_name || 'Votre Entreprise'} <noreply@${mailgunDomain}>`;
+formData.append('from', fromHeader);
+formData.append('to', clientData.email);
+formData.append('subject', `Facture ${invoiceData.numero_facture} - ${brandingSettings?.company_name || 'Votre Entreprise'}`);
+formData.append('html', htmlContent);
 
-    // Try different Mailgun regions
-    const mailgunUrls = [
-      'https://api.mailgun.net',
-      'https://api.eu.mailgun.net'
-    ];
+// Resolve preferred region order
+const preferredRegion = (Deno.env.get('MAILGUN_REGION') || '').toLowerCase();
+const mailgunUrls = preferredRegion === 'eu'
+  ? ['https://api.eu.mailgun.net', 'https://api.mailgun.net']
+  : ['https://api.mailgun.net', 'https://api.eu.mailgun.net'];
 
-    let lastError;
-    for (const baseUrl of mailgunUrls) {
-      try {
-        console.log(`Attempting to send via ${baseUrl}`);
-        
-        const response = await fetch(`${baseUrl}/v3/${mailgunDomain}/messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Basic ${btoa(`api:${mailgunApiKey}`)}`,
-          },
-          body: formData
-        });
+let lastError: any = null;
+for (const baseUrl of mailgunUrls) {
+  try {
+    const url = `${baseUrl}/v3/${mailgunDomain}/messages`;
+    console.log('Attempting to send via', { url, from: fromHeader, to: clientData.email });
 
-        const result = await response.json();
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${btoa(`api:${mailgunApiKey}`)}`,
+      },
+      body: formData,
+    });
 
-        if (response.ok) {
-          console.log('Email sent successfully:', result);
-          return new Response(
-            JSON.stringify({
-              success: true,
-              message: 'Email envoyé avec succès',
-              id: result.id,
-              region: baseUrl.includes('eu') ? 'EU' : 'US'
-            }),
-            {
-              status: 200,
-              headers: { 'Content-Type': 'application/json', ...corsHeaders },
-            }
-          );
-        } else {
-          console.error(`Failed with ${baseUrl}:`, result);
-          lastError = result;
-        }
-      } catch (error) {
-        console.error(`Error with ${baseUrl}:`, error);
-        lastError = error;
+    const contentType = response.headers.get('content-type') || '';
+    let bodyJson: any = null;
+    let bodyText = '';
+    try {
+      if (contentType.includes('application/json')) {
+        bodyJson = await response.json();
+      } else {
+        bodyText = await response.text();
       }
+    } catch (_) {
+      try { bodyText = await response.text(); } catch { /* ignore */ }
     }
 
-    throw new Error(`Failed to send email: ${JSON.stringify(lastError)}`);
+    if (response.ok) {
+      const result = bodyJson || { message: bodyText };
+      console.log('Email sent successfully', { result, baseUrl });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: result.message || 'Email envoyé avec succès',
+          id: result.id,
+          region_base_url: baseUrl,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    } else {
+      const errInfo = {
+        status: response.status,
+        statusText: response.statusText,
+        baseUrl,
+        body: bodyJson || bodyText,
+        hint: (response.status === 401 || response.status === 403)
+          ? 'Vérifiez l’API key, le domaine Mailgun et l’adresse expéditrice validée.'
+          : undefined,
+      };
+      console.error('Mailgun error', errInfo);
+      lastError = errInfo;
+      // Try next region if available
+      continue;
+    }
+  } catch (error) {
+    console.error('Network error with Mailgun', { baseUrl, error });
+    lastError = { baseUrl, error: String(error) };
+  }
+}
+
+// Return detailed error to the client (200 to surface details in UI)
+return new Response(
+  JSON.stringify({ success: false, error: 'MailgunError', details: lastError }),
+  { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+);
 
   } catch (error: any) {
     console.error('Error in send-invoice-email function:', error);

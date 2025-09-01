@@ -140,9 +140,11 @@ const Invoices = () => {
         throw new Error(`Erreur Supabase: ${error.message}`);
       }
 
-      if (!data?.success) {
-        throw new Error(data?.error || 'Échec de l\'envoi sans détails');
-      }
+if (!data?.success) {
+  const details = (data as any)?.details;
+  const extra = typeof details === 'string' ? details : (details?.hint || details?.body || JSON.stringify(details || {}));
+  throw new Error(`${data?.error || 'Échec de l\'envoi'}${extra ? `: ${extra}` : ''}`);
+}
 
       toast({
         title: "✅ Facture envoyée",
