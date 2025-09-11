@@ -17,6 +17,7 @@ import Branding from "./pages/Branding";
 import Settings from "./pages/Settings";
 import Domaines from "./pages/Domaines";
 import Loi25 from "./pages/Loi25";
+import Hebergement from "./pages/Hebergement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -78,6 +79,11 @@ const App = () => (
             <Route path="/loi25" element={
               <ProtectedRoute>
                 <Loi25 />
+              </ProtectedRoute>
+            } />
+            <Route path="/hebergement" element={
+              <ProtectedRoute>
+                <Hebergement />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

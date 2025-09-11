@@ -13,6 +13,7 @@ import {
   LogOut,
   Globe,
   Scale,
+  Server,
 } from "lucide-react";
 import {
   Sidebar,
@@ -46,6 +47,11 @@ const menuItems = [
     title: "Loi 25",
     url: "/loi25",
     icon: Scale,
+  },
+  {
+    title: "Hébergement",
+    url: "/hebergement",
+    icon: Server,
   },
   {
     title: "Factures",
