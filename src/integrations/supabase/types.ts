@@ -131,6 +131,42 @@ export type Database = {
         }
         Relationships: []
       }
+      hebergements: {
+        Row: {
+          created_at: string
+          date_expiration: string
+          date_rappel: string | null
+          id: string
+          nom_client: string
+          serveur: string
+          type_hebergement: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_expiration: string
+          date_rappel?: string | null
+          id?: string
+          nom_client: string
+          serveur: string
+          type_hebergement: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_expiration?: string
+          date_rappel?: string | null
+          id?: string
+          nom_client?: string
+          serveur?: string
+          type_hebergement?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           client_id: string | null

@@ -57,7 +57,7 @@ export default function Hebergement() {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('hebergements')
         .select('*')
         .eq('user_id', user.id)
@@ -75,7 +75,7 @@ export default function Hebergement() {
 
   const deleteHebergement = async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('hebergements')
         .delete()
         .eq('id', id);
