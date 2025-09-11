@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AddHebergementDialog } from "@/components/AddHebergementDialog";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Search, Pencil, Trash2, Server } from "lucide-react";
@@ -90,6 +91,10 @@ export default function Hebergement() {
     }
   };
 
+  const handleHebergementAdded = (newHebergement: HebergementEntry) => {
+    setHebergements([...hebergements, newHebergement]);
+  };
+
   useEffect(() => {
     fetchHebergements();
   }, [user]);
@@ -131,10 +136,7 @@ export default function Hebergement() {
               Gérez vos services d'hébergement et leurs renouvellements
             </p>
           </div>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Nouvel hébergement
-          </Button>
+          <AddHebergementDialog onAdd={handleHebergementAdded} />
         </div>
 
         <Card>
@@ -244,10 +246,7 @@ export default function Hebergement() {
                   {searchTerm ? "Aucun résultat pour votre recherche." : "Commencez par ajouter votre premier hébergement."}
                 </p>
                 {!searchTerm && (
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Ajouter un hébergement
-                  </Button>
+                  <AddHebergementDialog onAdd={handleHebergementAdded} />
                 )}
               </div>
             )}
