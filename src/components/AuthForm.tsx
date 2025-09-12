@@ -231,7 +231,6 @@ export function AuthForm() {
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>© 2024 Groupe OBV. Tous droits réservés.</p>
-            <p className="mt-1">Admin: obv2024G / Synergie2024</p>
           </div>
         </CardContent>
       </Card>
