@@ -346,7 +346,7 @@ export const EditInvoiceForm = ({ isOpen, onClose, invoice }: EditInvoiceFormPro
                       />
                     </div>
                     <div className="col-span-3">
-                      <Label htmlFor={`price-${item.id}`}>Prix unitaire (CAD $)</Label>
+                      <Label htmlFor={`price-${item.id}`}>Prix unitaire ($ CAD)</Label>
                       <Input
                         id={`price-${item.id}`}
                         type="number"

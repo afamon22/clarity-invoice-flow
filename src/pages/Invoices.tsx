@@ -263,7 +263,7 @@ if (!data?.success) {
                         <p><span className="font-medium">Client:</span> {invoice.clients?.nom || 'Non spécifié'}</p>
                         <p><span className="font-medium">Date:</span> {new Date(invoice.date_facture).toLocaleDateString('fr-FR')}</p>
                         <p><span className="font-medium">Échéance:</span> {new Date(invoice.date_echeance).toLocaleDateString('fr-FR')}</p>
-                        <p><span className="font-medium">Montant:</span> <span className="font-semibold text-lg">{invoice.montant.toFixed(2)} €</span></p>
+                        <p><span className="font-medium">Montant:</span> <span className="font-semibold text-lg">{invoice.montant.toFixed(2)} $ CAD</span></p>
                       </div>
                     </div>
                     
@@ -369,8 +369,8 @@ if (!data?.success) {
                             <p className="text-sm text-gray-600">Quantité: {item.quantity}</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium">{(item.quantity * item.price).toFixed(2)} €</p>
-                            <p className="text-sm text-gray-600">{item.price.toFixed(2)} € / unité</p>
+                            <p className="font-medium">{(item.quantity * item.price).toFixed(2)} $ CAD</p>
+                            <p className="text-sm text-gray-600">{item.price.toFixed(2)} $ CAD / unité</p>
                           </div>
                         </div>
                       ))
@@ -385,19 +385,19 @@ if (!data?.success) {
                     <div className="text-right space-y-2 min-w-[200px]">
                       <div className="flex justify-between">
                         <span>Sous-total:</span>
-                        <span>{selectedInvoice.sous_total.toFixed(2)} €</span>
+                        <span>{selectedInvoice.sous_total.toFixed(2)} $ CAD</span>
                       </div>
                       <div className="flex justify-between">
                         <span>TPS:</span>
-                        <span>{selectedInvoice.tps.toFixed(2)} €</span>
+                        <span>{selectedInvoice.tps.toFixed(2)} $ CAD</span>
                       </div>
                       <div className="flex justify-between">
                         <span>TVQ:</span>
-                        <span>{selectedInvoice.tvq.toFixed(2)} €</span>
+                        <span>{selectedInvoice.tvq.toFixed(2)} $ CAD</span>
                       </div>
                       <div className="flex justify-between font-semibold text-lg border-t pt-2">
                         <span>Total:</span>
-                        <span>{selectedInvoice.total.toFixed(2)} €</span>
+                        <span>{selectedInvoice.total.toFixed(2)} $ CAD</span>
                       </div>
                     </div>
                   </div>
